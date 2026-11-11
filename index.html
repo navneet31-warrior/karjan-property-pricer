@@ -1,0 +1,888 @@
+<title>Karjan Property Pricer Demo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: a navy command band carries the verdict (price, margin, buyer fit); below it, project facts on the left and the evidence desk on the right.
+   Palette: navy for authority, royal blue for interaction, coral only for prices and the main action, semantic green/amber/red for verdicts. */
+:root{
+  --bg:#f3f5fa; --surface:#ffffff; --ink:#15203a; --muted:#5e6a83; --line:#dfe4ee; --field:#f6f8fc;
+  --navy:#14213d; --navy-2:#1d2d52; --on-navy:#f2f5fb; --on-navy-muted:#aeb9d3;
+  --brand:#2456d3; --brand-ink:#ffffff; --brand-soft:#e7eefc;
+  --accent:#e4572e; --accent-soft:#fdebe5;
+  --good:#16805a; --good-soft:#e0f3ea; --warn:#a96b06; --warn-soft:#fbf0d9; --bad:#c2352b; --bad-soft:#fbe6e3;
+  --shadow:0 1px 2px rgba(20,33,61,.06),0 4px 16px rgba(20,33,61,.05);
+  --f-ui:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c1220; --surface:#141c2f; --ink:#e7ecf6; --muted:#9ba7c0; --line:#253049; --field:#10182a;
+  --navy:#0a101e; --navy-2:#16213a; --on-navy:#eef2fa; --on-navy-muted:#97a4c2;
+  --brand:#7ea3ff; --brand-ink:#0c1220; --brand-soft:#1b2a4f; --accent:#ff8a63; --accent-soft:#3d2018;
+  --good:#4fd1a0; --good-soft:#123326; --warn:#f3c266; --warn-soft:#352a12; --bad:#ff8277; --bad-soft:#3d1917;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1220; --surface:#141c2f; --ink:#e7ecf6; --muted:#9ba7c0; --line:#253049; --field:#10182a;
+  --navy:#0a101e; --navy-2:#16213a; --on-navy:#eef2fa; --on-navy-muted:#97a4c2;
+  --brand:#7ea3ff; --brand-ink:#0c1220; --brand-soft:#1b2a4f; --accent:#ff8a63; --accent-soft:#3d2018;
+  --good:#4fd1a0; --good-soft:#123326; --warn:#f3c266; --warn-soft:#352a12; --bad:#ff8277; --bad-soft:#3d1917;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.5}
+.gut{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.band{background:var(--navy);color:var(--on-navy)}
+.band .gut{padding-block:22px 24px}
+h1{font-weight:800;font-size:1.65rem;letter-spacing:-.02em;margin:0;text-wrap:balance}
+h2{font-weight:700;font-size:1.02rem;margin:0 0 12px;letter-spacing:-.01em;text-wrap:balance}
+h3{font-weight:700;font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);margin:0}
+.eyebrow{font-family:var(--f-num);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--on-navy-muted)}
+.lab{font-family:var(--f-num);font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.lede{color:var(--on-navy-muted);margin:6px 0 0;max-width:76ch}
+.topline{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:14px 24px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{font:inherit;font-size:.84rem;font-weight:600;border-radius:8px;padding:8px 13px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.band button{background:transparent;color:var(--on-navy);border-color:rgba(255,255,255,.22)}
+.band button.cta{background:var(--accent);border-color:var(--accent);color:#fff}
+.btnlike{font:inherit;font-size:.84rem;font-weight:600;border-radius:8px;padding:8px 13px;cursor:pointer;border:1px solid rgba(255,255,255,.22);color:var(--on-navy);display:inline-block}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:16;background:var(--navy)}
+.switchbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:15;background:var(--navy);border-bottom:1px solid rgba(255,255,255,.12)}
+.switchbar .gut{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding-block:8px}
+.seg{display:inline-flex;background:var(--navy-2);border-radius:999px;padding:3px;gap:2px}
+.seg button{border:0;border-radius:999px;background:transparent;color:var(--on-navy-muted);padding:6px 14px;font-size:.82rem}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.swnote{font-size:.76rem;color:var(--on-navy-muted)}
+button.small{padding:4px 9px;font-size:.78rem}
+button.ghost{background:transparent}
+button:disabled{opacity:.5;cursor:not-allowed}
+input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.band :focus-visible{outline-color:var(--on-navy)}
+.statusdot{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:var(--on-navy-muted)}
+.statusdot::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--good)}
+.kband{display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;gap:12px;margin-top:20px}
+@media (max-width:900px){.kband{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kc{background:var(--navy-2);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.kc .v{font-weight:800;font-size:1.6rem;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.15}
+.kc .d{font-size:.76rem;color:var(--on-navy-muted)}
+.kc.price .v{color:var(--accent);font-size:1.95rem}
+.vpill{align-self:flex-start;font-size:.74rem;font-weight:700;border-radius:999px;padding:2px 10px}
+.vpill.good{background:var(--good);color:#fff} .vpill.warn{background:var(--warn);color:#fff} .vpill.bad{background:var(--bad);color:#fff}
+.meter{position:relative;height:8px;border-radius:4px;background:rgba(255,255,255,.14);margin:6px 0 2px}
+.meter .zone{position:absolute;top:0;bottom:0;background:rgba(79,209,160,.35);border-left:2px solid var(--good);border-right:2px solid var(--good)}
+.meter .dot{position:absolute;top:-3px;width:14px;height:14px;border-radius:50%;background:var(--on-navy);transform:translateX(-50%);box-shadow:0 0 0 2px var(--navy-2)}
+main.gut{padding-block:22px 56px}
+.grid{display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:1000px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stack{display:flex;flex-direction:column;gap:18px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow);min-width:0}
+details.sec{border-top:1px solid var(--line);padding-top:14px}
+details.sec:first-of-type{border-top:0;padding-top:0}
+details.sec>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary .sum{font-family:var(--f-num);font-size:.74rem;color:var(--muted);margin-left:auto}
+details.sec>summary::after{content:"+";font-family:var(--f-num);color:var(--muted);width:1ch}
+details.sec[open]>summary::after{content:"−"}
+.fields{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);font-weight:500;min-width:0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+input[type=number],input[type=text],select{font:inherit;font-size:.86rem;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:7px 9px;width:100%;min-width:0}
+input[type=number]{font-family:var(--f-num);font-size:.84rem}
+input[type=range]{width:100%;accent-color:var(--brand);margin:0}
+.sl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center}
+.sl .l{font-size:.8rem;font-weight:500}
+.sl .val{font-family:var(--f-num);font-size:.86rem;font-weight:600;color:var(--brand)}
+.sl input,.sl .rng,.sl .hint{grid-column:1/-1}
+.sl .rng{display:flex;justify-content:space-between;font-family:var(--f-num);font-size:.68rem;color:var(--muted)}
+.locks{display:flex;flex-direction:column;gap:6px}
+.lock{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;font-size:.8rem;padding:7px 10px;background:var(--field);border:1px solid var(--line);border-radius:8px}
+.lock svg{width:12px;height:12px;color:var(--muted)}
+.lock .num{font-family:var(--f-num);font-weight:600}
+.hint{color:var(--muted);font-size:.75rem;margin:0}
+.cite{font-family:var(--f-num);font-size:.64rem;color:var(--brand);text-decoration:none;background:var(--brand-soft);border-radius:4px;padding:1px 5px;white-space:nowrap;font-weight:600}
+.cite.asm{color:var(--warn);background:var(--warn-soft)}
+table{border-collapse:collapse;width:100%;font-size:.84rem}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-weight:600;color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.tbl{overflow-x:auto}
+.mix td{padding:4px}
+.mix input,.mix select{padding:6px 7px;font-size:.8rem}
+.pill{display:inline-flex;align-items:center;font-size:.72rem;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.pill.good{background:var(--good-soft);color:var(--good)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.neutral{background:var(--brand-soft);color:var(--brand)}
+.ok{color:var(--good);font-weight:600} .no{color:var(--bad);font-weight:600}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+@media (max-width:880px){.two{grid-template-columns:minmax(0,1fr)}}
+.persona{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--field)}
+.persona .ph{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.persona .ph b{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.chart{overflow-x:auto}
+.chart svg{display:block;width:100%;min-width:540px;height:auto}
+.verdict{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:10px;font-size:.88rem;margin-top:12px}
+.verdict.good{background:var(--good-soft)} .verdict.warn{background:var(--warn-soft)} .verdict.bad{background:var(--bad-soft)}
+.verdict b{display:block;margin-bottom:2px}
+.bar{height:12px;border-radius:6px;background:var(--line);overflow:hidden;display:flex}
+.bar span{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.74rem;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.note{font-size:.76rem;color:var(--muted)}
+.excl td{color:var(--muted)}
+ol.src{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:8px 18px;font-size:.78rem}
+ol.src li{display:grid;grid-template-columns:36px minmax(0,1fr);gap:6px}
+ol.src a{color:var(--brand);word-break:break-word}
+.basis p{margin:0 0 8px;max-width:80ch}
+.basis code{font-family:var(--f-num);font-size:.76rem;background:var(--field);padding:1px 5px;border-radius:4px}
+/* customer view */
+.chero .gut{padding-block:30px 34px}
+.chero h1{font-size:2.2rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chip{font-size:.76rem;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:3px 11px;color:var(--on-navy)}
+.trust{display:flex;gap:10px;align-items:center;margin-top:14px;font-size:.82rem;color:var(--on-navy-muted)}
+.trust b{color:var(--on-navy)}
+.units{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.unit{border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:6px;background:var(--surface);cursor:pointer;text-align:left;color:var(--ink);box-shadow:var(--shadow)}
+.unit[aria-pressed="true"]{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.unit .price{font-weight:800;font-size:1.4rem;letter-spacing:-.02em;color:var(--accent);font-variant-numeric:tabular-nums}
+.unit.onreq{cursor:default}
+.unit.onreq .price{color:var(--muted);font-size:1.05rem}
+.emi{font-weight:800;font-size:2rem;letter-spacing:-.02em;color:var(--accent);font-variant-numeric:tabular-nums}
+.preview{background:var(--accent-soft);color:var(--ink)}
+.preview .gut{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding-block:8px;font-size:.84rem}
+.loading{padding:80px 0;text-align:center;color:var(--muted)}
+.toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));right:max(16px,env(safe-area-inset-right,0px));background:var(--navy);color:var(--on-navy);padding:9px 15px;border-radius:9px;font-size:.85rem;z-index:20;box-shadow:var(--shadow)}
+@media (prefers-reduced-motion:no-preference){.unit,.kc .v{transition:all .15s}}
+.sl input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:linear-gradient(to right,var(--line) 0,var(--line) var(--lo),var(--good-soft) var(--lo),var(--good-soft) var(--hi),var(--line) var(--hi));margin:6px 0 2px}
+.sl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--brand);border:2px solid var(--surface);box-shadow:0 0 0 1px var(--brand)}
+.sl input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--brand);border:2px solid var(--surface)}
+.sl.moved .val{color:var(--accent)}
+.sl.off .val{color:var(--warn)}
+.sl .val .pill{font-size:.62rem;padding:1px 6px;margin-left:4px}
+.verdict .vnotes{margin:8px 0 0;padding-left:18px;font-size:.84rem;font-weight:400}
+.verdict .vnotes li{margin:2px 0}
+#shopChart svg{width:100%;height:auto;display:block}
+</style>
+
+<div id="boot" class="loading">Loading…</div>
+
+<!-- ================= COMPANY CONSOLE ================= -->
+<div id="console" hidden>
+  <header class="band">
+    <div class="gut">
+      <div class="topline">
+        <div>
+          <span class="eyebrow">Company use only · not shared with buyers</span>
+          <h1>Karjan Property Pricer</h1>
+          <p class="lede">Predicts the selling price of every flat and shop from the profit the company requires, then tests whether the project is viable: against Karjan comparables, against the typical margin band, and against what target buyers can afford. Every price follows size: a bigger flat or shop always costs more.</p>
+        </div>
+        <div class="toolbar">
+          <span class="statusdot" id="saveState">Example project</span>
+          <button type="button" id="btnBackup">Save backup</button>
+          <label class="btnlike" for="fileRestore">Restore backup</label><input type="file" id="fileRestore" accept=".json,application/json" hidden>
+          <button type="button" id="btnReset">Reset</button>
+        </div>
+      </div>
+      <div class="kband">
+        <div class="kc price"><span class="eyebrow">Selling rate</span><span class="v" id="kRec">–</span><span class="d" id="kRecD"></span></div>
+        <div class="kc"><span class="eyebrow">Projected profit</span><span class="v" id="kNet">–</span><div class="meter" id="netMeter"></div><span class="d" id="kNetD"></span></div>
+        <div class="kc"><span class="eyebrow">Verdict</span><span class="v" id="kVerdict" style="font-size:1.25rem">–</span><span class="vpill" id="kVerdictPill"></span></div>
+        <div class="kc"><span class="eyebrow">Buyer fit</span><span class="v" id="kFit">–</span><span class="d" id="kFitD"></span></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="gut">
+    <div class="grid">
+      <form class="card stack" id="form" autocomplete="off">
+        <details class="sec" open>
+          <summary><h3>Project &amp; unit mix</h3><span class="sum" id="sumMix"></span></summary>
+          <div class="fields">
+            <label class="f">Project name<input type="text" id="p_name" maxlength="60"></label>
+            <label class="f">Location line<input type="text" id="p_loc" maxlength="80"></label>
+            <label class="f">Amenities, comma-separated<input type="text" id="p_amen" maxlength="200"></label>
+            <div class="row3">
+              <label class="f">Floors<input type="number" id="p_floors" min="1" max="12" step="1"></label>
+              <label class="f">Plot sq ft<input type="number" id="p_plot" min="1000" max="500000" step="500"></label>
+              <label class="f">Status<select id="p_status"><option value="uc">Under constr.</option><option value="ready">Ready (CC)</option></select></label>
+            </div>
+            <div class="tbl"><table class="mix">
+              <thead><tr><th>Unit</th><th>Kind</th><th class="num">Carpet sq ft</th><th class="num">Count</th><th></th></tr></thead>
+              <tbody id="mixBody"></tbody>
+            </table></div>
+            <button type="button" class="small" id="addUnit">+ Add unit type</button>
+          </div>
+        </details>
+        <details class="sec" open><summary><h3>Pricing</h3><span class="sum" id="sum_pricing"></span></summary><div class="fields" id="g_pricing">
+          <label class="f">Pricing method
+            <select id="m_method"><option value="margin">Profit-led: price that delivers the required profit</option><option value="market">Market: median of Karjan comparables</option><option value="higher">Higher of margin-led and market</option><option value="lower">Lower of margin-led and market</option></select>
+          </label>
+          <label class="f">Required profit set as
+            <select id="m_tmode"><option value="pct">Net margin, % of revenue</option><option value="amount">Amount, ₹ lakh</option></select>
+          </label>
+          <label class="f">Affordability test (never changes prices)
+            <select id="m_afford"><option value="majority">Affordable when most target buyers can buy it</option><option value="all">Affordable when all target buyers can buy it</option><option value="any">Affordable when at least one target buyer can buy it</option><option value="none">Do not test affordability</option></select>
+          </label>
+        </div></details>
+        <details class="sec" open><summary><h3>Site &amp; building</h3><span class="sum" id="sum_site"></span></summary><div class="fields" id="g_site"></div></details>
+        <details class="sec"><summary><h3>Project costs</h3><span class="sum" id="sum_costs"></span></summary><div class="fields" id="g_costs"></div></details>
+        <details class="sec"><summary><h3>Sales &amp; finance</h3><span class="sum" id="sum_sales"></span></summary><div class="fields" id="g_sales"></div></details>
+        <details class="sec"><summary><h3>Shops</h3><span class="sum" id="sum_shops"></span></summary><div class="fields" id="g_shops"><p class="hint">No Karjan shop prices are published, so shops are priced from 48 shop listings in Vadodara, Bharuch and Ankleshwar. Shop ₹/sq ft (super) = Karjan residential rate × ratio at a 300 sq ft shop × (shop super area ÷ 300)<sup>elasticity</sup>. A negative elasticity means small shops cost more per sq ft, as the listings show. Shop prices move in step with your flat rate against the market median.</p></div></details>
+        <details class="sec"><summary><h3>Taxes &amp; lending rules</h3><span class="sum" id="sum_tax"></span></summary><div class="fields" id="g_tax"></div></details>
+        <details class="sec"><summary><h3>Backup data (evidence)</h3><span class="sum" id="sumComp"></span></summary>
+          <div class="fields">
+            <p class="hint"><strong>Comparables.</strong> Edit any value, switch rows on or off, or add a project. A row counts only if its RERA number contains /KARJAN/, it is priced on carpet area and the unit is at least 300 sq ft.</p>
+            <div class="tbl"><table class="mix"><thead><tr><th>Use</th><th>Project · unit / RERA</th><th class="num">Carpet</th><th class="num">Price ₹</th><th>Basis</th><th></th></tr></thead><tbody id="compBody"></tbody></table></div>
+            <button type="button" class="small" id="addComp">+ Add comparable</button>
+            <p class="hint" style="margin-top:6px"><strong>Land listings.</strong> Edit and press Apply to set the land rate to their median.</p>
+            <div class="tbl"><table class="mix"><thead><tr><th>Listing</th><th class="num">Plot sq ft</th><th class="num">Price ₹</th><th class="num">₹/sq ft</th><th></th></tr></thead><tbody id="landBody"></tbody></table></div>
+            <div class="toolbar"><button type="button" class="small" id="addLand">+ Add listing</button><button type="button" class="small" id="applyLand">Apply median to land rate</button></div>
+            <p class="hint" style="margin-top:6px"><strong>Shop listings.</strong> One row per listing: area as listed (super), asking price, floor, and the residential rate of that locality. Add 99acres or any other listing here. Apply refits the size curve (least squares on log values) and sets the elasticity, upper-floor discount and the low and high ratios (lower quartile and median, adjusted to a 300 sq ft ground-floor shop).</p>
+            <div class="tbl" style="max-height:340px;overflow:auto"><table class="mix"><thead><tr><th>Use</th><th>Locality · source</th><th>Floor</th><th class="num">Sq ft</th><th class="num">Price ₹</th><th class="num">Flat ₹/sq ft</th><th class="num">Shop ₹/sq ft</th><th class="num">Ratio</th><th></th></tr></thead><tbody id="shopBody"></tbody></table></div>
+            <div class="toolbar"><button type="button" class="small" id="addShop">+ Add listing</button><button type="button" class="small" id="applyShop">Refit size curve</button><span class="hint" id="shopFitNote"></span></div>
+          </div></details>
+        <details class="sec"><summary><h3>Admin settings</h3><span class="sum" id="sum_admin"></span></summary><div class="fields" id="g_admin">
+          <label class="f">Comparable must have this text in its RERA number (blank = any)<input type="text" id="a_rera" maxlength="40"></label>
+          <label style="display:flex;gap:6px;align-items:center;font-size:.82rem"><input type="checkbox" id="a_carpet"> Count only comparables priced on carpet area</label>
+        </div></details>
+        <details class="sec"><summary><h3>Target buyers</h3><span class="sum">3 buyers</span></summary>
+          <div class="fields"><p class="hint">Defaults are good-income buyers who can afford every unit. Swap in any template or set your own figures.</p><div id="buyerBox" class="stack"></div></div></details>
+      </form>
+
+      <div class="stack">
+        <section class="card">
+          <h2>Where the price sits against the Karjan market</h2>
+          <div class="chart" id="chart"></div>
+          <div class="verdict" id="verdictBox"></div>
+        </section>
+        <section class="card">
+          <h2>Price list</h2>
+          <div class="tbl"><table id="tUnits"></table></div>
+          <p class="note" id="priceNote"></p>
+        </section>
+        <section class="card">
+          <h2>Who is the customer for each unit</h2>
+          <div class="tbl"><table id="tCust"></table></div>
+          <p class="note">Minimum cash and income for the most expensive version of each unit (top floor, or high end for shops), for a buyer with no other EMIs, using the typical loan terms under Taxes &amp; lending. "Can buy" and "Cannot buy" test the nine buyer templates as listed, including their own EMIs, loan rates and tenures.</p>
+        </section>
+        <section class="card">
+          <h2>Shop price by carpet size</h2>
+          <div class="chart" id="shopChart"></div>
+          <div class="tbl"><table id="tShopSize"></table></div>
+          <p class="note" id="shopNote"></p>
+        </section>
+        <section class="card">
+          <h2>Who can buy each unit</h2>
+          <div class="tbl"><table id="tMatrix"></table></div>
+          <p class="note">Tested at the most expensive price of each unit (top floor for flats, high end for shops). A buyer qualifies when savings cover the down payment plus GST, stamp duty and registration, and income supports the loan within their FOIR. The test never changes a price; it tells you which sizes your buyers can reach.</p>
+        </section>
+        <div class="two">
+          <section class="card">
+            <h2>Where the revenue goes</h2>
+            <div class="bar" id="costBar" aria-hidden="true"></div>
+            <div class="legend" id="costLegend"></div>
+            <div class="tbl" style="margin-top:10px"><table id="tCost"></table></div>
+          </section>
+          <section class="card">
+            <h2>Changes from defaults</h2>
+            <p class="note" style="margin-top:0">Everything you have moved. Amber rows sit outside the published evidence range.</p>
+            <div class="tbl"><table id="tAudit"></table></div>
+          </section>
+        </div>
+        <section class="card">
+          <h2>Comparable screening</h2>
+          <div class="tbl"><table id="tComps"></table></div>
+        </section>
+        <section class="card basis" id="basis">
+          <h2>How it works</h2>
+          <p><strong>Market rate.</strong> Median carpet-area rate of switched-on Karjan RERA comparables (one value per project), moved by your positioning.</p>
+          <p><strong>Profit-led rate.</strong> Fixed cost = land + land duty + construction + approvals + architect fees + GujRERA fee + contingency. Revenue = rate × (flat carpet × average floor rise + Σ shop super area × shop multiple). Rate = <code>fixed cost ÷ (1 − sales &amp; finance % − required margin) ÷ that area</code>; with a ₹ amount, <code>(fixed cost + amount) ÷ (1 − sales &amp; finance %) ÷ area</code>.</p>
+          <p><strong>Flat prices.</strong> Price = rate × carpet area × (1 + floor rise × floor). Price rises with size, so a 3 BHK always costs more than a smaller 2 BHK.</p>
+          <p><strong>Shop prices by size.</strong> Shop ₹/sq ft super = Karjan residential rate <a class="cite" href="#src-S1">S1</a> × (your rate ÷ comparable median) × ratio × (super area ÷ 300)<sup>elasticity</sup>, less the upper-floor discount where it applies. Ratio, elasticity and discount come from a regression of 48 listings <a class="cite" href="#src-S29">S29</a>–<a class="cite" href="#src-S34">S34</a> against locality residential rates <a class="cite" href="#src-S1">S1</a> <a class="cite" href="#src-S35">S35</a> <a class="cite" href="#src-S36">S36</a>. Revenue counts the low ratio.</p>
+          <p><strong>Viability.</strong> Net margin = (revenue − fixed cost − sales &amp; finance) ÷ revenue, compared with the 5–15% earned by small developers <a class="cite" href="#src-S14">S14</a>.</p>
+          <p><strong>Buyer check.</strong> Maximum price = the smaller of (loan capacity + savings) ÷ (1 + taxes) and savings ÷ (1 − loan-to-value + taxes), solved inside each RBI loan slab and GST band. Largest affordable size = the size whose top price that many buyers can still pay.</p>
+          <p class="note">Academic estimation model built for a case study. Listing prices are asking prices, only three Karjan projects pass screening by default, and the shop curve explains about a third of the variation between listings (R² ≈ 0.32).</p>
+        </section>
+        <section class="card"><h2>Sources</h2><ol class="src" id="srcList"></ol><p class="note">All accessed 29–30 October 2026. Every figure appears with its source ID in the reference workbook.</p></section>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+<script>
+/* KARJAN PRICER ENGINE v9
+   - Every unit is priced at rate × area, so a bigger unit always costs more (no affordability caps that flatten prices).
+   - Affordability is a test with a recommendation (largest unit size the target buyers can afford), not a price cap.
+   - Shops are priced by size: Karjan residential rate × shop-to-residential ratio at 300 sq ft × (shop super area ÷ 300)^elasticity,
+     fitted on 48 Vadodara/Bharuch/Ankleshwar shop listings (S29–S34) against locality residential rates (S1, S35, S36).
+   Parameter spec: key: [label, unit, default, evMin, evMax, hardMin, hardMax, step, source, group] */
+var ENGINE = (function(){
+  var P = {
+    method:     ["Pricing method","","margin",null,null,null,null,null,"A","pricing"],
+    affordRule: ["Affordability test","","majority",null,null,null,null,null,"A","pricing"],
+    targetMode: ["Required profit set as","","pct",null,null,null,null,null,"A","pricing"],
+    posPct:     ["Positioning vs comparable median","%",0,-5,5,-25,25,0.5,"A","pricing"],
+    targetNet:  ["Required profit (net margin)","% of revenue",15,5,15,0,40,0.5,"S14","pricing"],
+    targetAmt:  ["Required profit (amount)","₹ lakh",150,75,230,0,2000,5,"A","pricing"],
+    floorRise:  ["Floor-rise premium per floor","%",1,0,1.5,0,3,0.25,"A","pricing"],
+    landRate:   ["Land rate paid","₹/sq ft plot",1000,448,4167,100,10000,25,"S10","site"],
+    constrRate: ["Construction cost","₹/sq ft super area",2128,1650,2450,1000,6000,1,"S12","site"],
+    loadingPct: ["Common-area loading","% of carpet",25,20,35,0,60,1,"S21","site"],
+    fsiMax:     ["FSI allowed","ratio",1.8,1.8,2.7,0.5,5,0.1,"S20","site"],
+    landDutyPct:["Stamp duty + registration on land","% of land",5.9,5.9,5.9,0,12,0.1,"S22","costs"],
+    approvalsPct:["Approvals & regulatory","% of construction",5,5,10,0,25,0.5,"S14","costs"],
+    archPct:    ["Architect & consultants","% of construction",6.5,5.5,8,0,15,0.25,"S15","costs"],
+    contPct:    ["Contingency for unforeseen costs","% of construction",5,3,10,0,25,0.5,"S16","costs"],
+    siteDevPct: ["Site development & utility connections","% of construction",0,0,5,0,20,0.5,"A","costs"],
+    brokPct:    ["Brokerage","% of revenue",1.5,1,2,0,6,0.25,"S17","sales"],
+    mktPct:     ["Marketing","% of revenue",2,1,3,0,10,0.25,"S18","sales"],
+    finPct:     ["Finance cost","% of revenue",8,3,14,0,25,0.5,"S14","sales"],
+    overheadPct:["Developer overheads (office, staff, admin)","% of revenue",0,0,4,0,15,0.25,"A","sales"],
+    resKarjan:  ["Karjan average residential rate","₹/sq ft super",3400,2950,3900,1000,10000,50,"S1","shops"],
+    shopLow:    ["Shop ÷ residential rate at 300 sq ft, low (revenue)","× (super area)",3.9,3.6,4.77,1,10,0.01,"S29","shops"],
+    shopHigh:   ["Shop ÷ residential rate at 300 sq ft, high","× (super area)",4.77,3.9,5.92,1,10,0.01,"S29","shops"],
+    shopElast:  ["Shop size elasticity (₹/sq ft vs size)","",-0.16,-0.31,-0.01,-0.6,0,0.01,"S29","shops"],
+    shopUpper:  ["Upper-floor shop discount","% below ground floor",41,19,57,0,80,1,"S29","shops"],
+    stampPct:   ["Stamp duty (buyer)","% of price",4.9,4.9,4.9,0,10,0.1,"S22","tax"],
+    regPct:     ["Registration fee (buyer)","% of price",1,0,1,0,3,0.1,"S22","tax"],
+    gstAff:     ["GST, affordable flat","% (under construction)",1,1,1,0,12,0.5,"S24","tax"],
+    gstStd:     ["GST, other flats","% (under construction)",5,5,5,0,18,0.5,"S24","tax"],
+    gstCom:     ["GST, shops in a mainly residential project","% (under construction)",5,5,5,0,18,0.5,"S23","tax"],
+    gstComHi:   ["GST, shops when commercial carpet exceeds 15% of the project","% (under construction)",12,12,12,0,18,0.5,"S23","tax"],
+    affSqm:     ["Affordable-housing carpet limit (non-metro town)","sq m",90,90,90,30,200,1,"S24","tax"],
+    affCap:     ["Affordable-housing price cap","₹ lakh",45,45,45,10,100,1,"S24","tax"],
+    ltv1:       ["Loan-to-value, loans up to ₹30 lakh","%",90,90,90,50,95,1,"S25","tax"],
+    ltv2:       ["Loan-to-value, ₹30–75 lakh","%",80,80,80,50,95,1,"S25","tax"],
+    ltv3:       ["Loan-to-value, above ₹75 lakh","%",75,75,75,50,95,1,"S25","tax"],
+    ltvShop:    ["Loan-to-value, shops","%",70,60,75,30,90,1,"A","tax"],
+    loanRate:   ["Typical home-loan rate","% a year",8.5,7.5,8.8,5,15,0.05,"S27","tax"],
+    loanTenure: ["Typical home-loan tenure","years",20,15,30,5,30,1,"A","tax"],
+    shopLoanRate:["Typical shop-loan rate","% a year",9.6,9.2,10.75,5,18,0.05,"S27","tax"],
+    shopLoanTenure:["Typical shop-loan tenure","years",15,10,15,3,20,1,"A","tax"],
+    foirStd:    ["Share of income banks allow for EMIs (FOIR)","%",40,35,50,20,70,1,"S26","tax"],
+    bandLow:    ["Viable margin band, lower edge","% of revenue",5,5,5,0,30,0.5,"S14","admin"],
+    bandHigh:   ["Viable margin band, upper edge","% of revenue",15,15,15,1,50,0.5,"S14","admin"],
+    minCarpet:  ["Comparable must be at least","sq ft carpet",300,300,300,0,1000,10,"A","admin"],
+    reraRes:    ["GujRERA fee, residential","₹/sq m plot",10,5,10,0,50,1,"S19","admin"],
+    reraCom:    ["GujRERA fee, commercial","₹/sq m plot",25,20,25,0,100,1,"S19","admin"],
+    reraResCap: ["GujRERA fee cap, residential","₹ lakh",5,5,5,0,50,0.5,"S19","admin"],
+    reraComCap: ["GujRERA fee cap, commercial","₹ lakh",10,10,10,0,50,0.5,"S19","admin"]
+  };
+  var SHOP_REF=300, SHOP_MIN=100, SHOP_MAX=2500, SQM=10.7639;
+  var COMPS = [
+    {name:"Kuber Ishwar City · 2 BHK", rera:"PR/GJ/VADODARA/KARJAN/Others/RAA11389/040323", carpet:521, price:3126000, basis:"carpet", status:"Under construction (Jan 2027)", src:"S3", include:true},
+    {name:"Shree Prerna Residency · 1 BHK", rera:"PR/GJ/VADODARA/KARJAN/Others/RAA09416/A1R/210324/301125", carpet:468, price:2500000, basis:"carpet", status:"Ready", src:"S4", include:true},
+    {name:"Shantikunj Residency · 2 BHK", rera:"PR/GJ/VADODARA/KARJAN/Others/MAA11128/020123", carpet:765, price:3800000, basis:"carpet", status:"Ready", src:"S5", include:true},
+    {name:"Kuber Ishwar City · 3 BHK", rera:"PR/GJ/VADODARA/KARJAN/Others/RAA11389/040323", carpet:822, price:4932000, basis:"carpet", status:"Under construction (Jan 2027)", src:"S3", include:true},
+    {name:"Aakar Adarsh Residency · 2 BHK", rera:"PR/GJ/VADODARA/KARJAN/Others/MAA03810/241018", carpet:806, price:3224000, basis:"builtup", status:"Under construction (Jun 2031)", src:"S6", include:true},
+    {name:"Swastik Complex · 1 BHK", rera:"PR/GJ/VADODARA/VADODARA/Others/MAA11512/EX1/100125/291125", carpet:454, price:4086000, basis:"carpet", status:"Ready", src:"S7", include:true},
+    {name:"Prayosha Residency · 1 BHK", rera:"PR/GJ/VADODARA/VADODARA/Others/MAA02871/080618", carpet:424, price:4200000, basis:"carpet", status:"Ready", src:"S8", include:true},
+    {name:"Shree Maa Bless · 1 RK", rera:"PR/GJ/VADODARA/KARJAN/Karjan Municipality/MAA14579/241224/311228", carpet:206, price:2470000, basis:"carpet", status:"Under construction (Dec 2028)", src:"S9", include:true}];
+  // Shop listings, Oct 2026 asking prices. area = listed (super/built-up) sq ft; floor G ground, U upper, N not stated; res = residential ₹/sq ft of that locality
+  var SHOPS = [
+    ["Atladra · Samanvay Status 1",250,4000000,"G",3150,"S29","S1"],["Waghodia Road",300,2700000,"U",3000,"S29","S35"],["Sevasi",797,9963000,"N",4000,"S29","S35"],
+    ["Vasna Bhayli Rd · Florence Excellence",664,11100000,"U",4050,"S29","S1"],["Maneja",250,2700000,"U",3450,"S29","S1"],["Tarsali",240,7000000,"G",2750,"S29","S1"],
+    ["Akota",390,7500000,"N",4050,"S29","S1"],["Alkapuri",600,10000000,"N",5750,"S29","S35"],["Waghodia · Vrundavan Bliss",285,5300000,"G",3000,"S29","S35"],
+    ["Soma Talav",199,1464000,"N",3000,"S29","S35"],["Waghodia Rd · Siddheshwar Harbour",210,2200000,"U",3000,"S29","S35"],["Danteshwar · Samruddhi Residency 3",120,1900000,"G",4200,"S29","S1"],
+    ["Waghodia Road",211,5500000,"N",3000,"S29","S35"],["Bhayli",300,5300000,"N",3700,"S29","S1"],["Waghodia Road",265,4751000,"N",3000,"S31","S35"],
+    ["Waghodia Road",230,4500000,"N",3000,"S31","S35"],["Manjalpur · Lilleria Richmond",505,9100000,"G",4200,"S31","S1"],["Ajwa Road",235,3851000,"N",3000,"S31","S35"],
+    ["Bhayli · Petal Trillium",255,7500000,"N",3700,"S32","S1"],["Waghodia Road",210,7100000,"N",3000,"S32","S35"],["Kalali · Shivansh Sarnam",150,2100000,"N",3400,"S32","S1"],
+    ["Gotri Rd · Dev Commercial Complex",110,1450000,"N",3850,"S32","S35"],["Gotri",180,4200000,"G",3850,"S32","S35"],["Vasna Bhayli Main Rd · Solaris-2",371,2400000,"U",4050,"S30","S1"],
+    ["Bill–Chansad Road",159,2500000,"N",2950,"S30","S1"],["Gotri",250,2510000,"G",3850,"S30","S35"],["Gotri–Sevasi Road",450,7500000,"G",3850,"S30","S35"],
+    ["Gotri",358,4500000,"N",3850,"S30","S35"],["Gotri",220,3000000,"U",3850,"S30","S35"],["Gotri–Sevasi Road",290,2700000,"U",3850,"S30","S35"],
+    ["Gorwa",584,7000000,"G",3000,"S30","S35"],["Gorwa",527,6324000,"G",3000,"S30","S35"],["Gorwa",362,2500000,"N",3000,"S30","S35"],
+    ["Gorwa",532,3500000,"U",3000,"S30","S35"],["Gorwa",452,4975000,"G",3000,"S30","S35"],["Waghodia Road",260,6000000,"N",3000,"S30","S35"],
+    ["Makarpura Road",240,3000000,"N",3450,"S30","S1"],["Tarsali · NH-48",300,3750000,"N",2750,"S30","S1"],["Ajwa Road",182,3500000,"N",3000,"S30","S35"],
+    ["Maneja",265,4400000,"N",3450,"S30","S1"],["Fatehgunj",550,12500000,"N",4250,"S30","S35"],["Waghodia Chowkdi",525,8500000,"G",3000,"S30","S35"],
+    ["Tarsali",432,4250000,"N",2750,"S30","S1"],["Kapodra Patia, Ankleshwar",375,4100000,"N",1900,"S34","S36"],["Piraman Road, Ankleshwar",480,4000000,"N",1900,"S34","S36"],
+    ["Main Road, Bharuch",325,2500000,"U",3200,"S33","S36"],["Bholav, Bharuch",2500,35000000,"N",3200,"S33","S36"],["Dahej Bypass Rd, Bharuch · Rang Platinum",6000,50000000,"N",3200,"S33","S36"]
+  ].map(function(a){return {loc:a[0],area:a[1],price:a[2],floor:a[3],res:a[4],src:a[5],resSrc:a[6],include:true}});
+
+  function defaults(){var o={};Object.keys(P).forEach(function(k){o[k]=P[k][2]});return o;}
+  var SELECTS={method:["margin","market","higher","lower"],affordRule:["majority","all","any","none"],targetMode:["pct","amount"]};
+  function val(prm,k){var d=P[k];prm=prm||{};if(SELECTS[k]){var s=prm[k]==="cost"?"margin":prm[k];return SELECTS[k].indexOf(s)>=0?s:d[2];}var v=parseFloat(prm[k]);if(!isFinite(v))v=d[2];return Math.min(d[6],Math.max(d[5],v));}
+  function outside(prm){return Object.keys(P).filter(function(k){if(SELECTS[k])return false;var v=val(prm,k);return v<P[k][3]-1e-9||v>P[k][4]+1e-9;});}
+  function changedKeys(prm){return Object.keys(P).filter(function(k){return SELECTS[k]?val(prm,k)!==P[k][2]:Math.abs(val(prm,k)-P[k][2])>1e-9;});}
+  function quantile(arr,q){var a=arr.filter(isFinite).sort(function(x,y){return x-y});if(!a.length)return NaN;var p=(a.length-1)*q,lo=Math.floor(p),hi=Math.ceil(p);return a[lo]+(a[hi]-a[lo])*(p-lo);}
+  function reraFee(sqm,comShare,x){var r=Math.min(x.reraResCap*1e5,sqm*x.reraRes*(sqm<=1000?0.5:1)),c=Math.min(x.reraComCap*1e5,sqm*x.reraCom*(sqm<=1000?0.8:1));return r*(1-comShare)+c*comShare;} // S19
+  function pv(rate,n,pmt){if(!(pmt>0))return 0;var r=rate/12;return r>0?pmt*(1-Math.pow(1+r,-n))/r:pmt*n;}
+  function shopGst(x){return (x._comShare>0.15?x.gstComHi:x.gstCom)/100;}
+  function gst(x,isShop,price,carpet,status){if(status==="ready")return 0;if(isShop)return shopGst(x);return (price<=x.affCap*1e5&&carpet/SQM<=x.affSqm)?x.gstAff/100:x.gstStd/100;}
+
+  // Shop ₹/sq ft super, as a multiple of the Karjan residential rate, for a shop of `sba` sq ft super area
+  function shopSizeFactor(sba,x){var a=Math.min(SHOP_MAX,Math.max(SHOP_MIN,sba));return Math.pow(a/SHOP_REF,x.shopElast);}
+  function shopFloorFactor(upper,x){return upper?1-x.shopUpper/100:1;}
+
+  // Fit ln(ratio) = a + b·ln(area/300) + c·upper + d·floor-not-stated by least squares (normal equations, Gaussian elimination)
+  function fitShops(rows){
+    var d=(rows||[]).filter(function(r){return r.include!==false&&r.area>0&&r.price>0&&r.res>0}).map(function(r){return {la:Math.log(r.area/SHOP_REF),y:Math.log(r.price/r.area/r.res),u:r.floor==="U"?1:0,n:r.floor==="N"?1:0}});
+    if(d.length<3)return {error:"Need at least three shop listings with area, price and residential rate.",n:d.length};
+    var useU=d.some(function(r){return r.u})&&d.length>=5, useN=d.some(function(r){return r.n})&&d.some(function(r){return !r.n&&!r.u})&&d.length>=6;
+    var cols=function(r){var v=[1,r.la];if(useU)v.push(r.u);if(useN)v.push(r.n);return v};
+    var k=cols(d[0]).length,A=[],i,j,l;for(i=0;i<k;i++){A.push([]);for(j=0;j<=k;j++)A[i].push(0)}
+    d.forEach(function(r){var c=cols(r);for(i=0;i<k;i++){for(j=0;j<k;j++)A[i][j]+=c[i]*c[j];A[i][k]+=c[i]*r.y}});
+    for(i=0;i<k;i++){var p=i;for(j=i+1;j<k;j++)if(Math.abs(A[j][i])>Math.abs(A[p][i]))p=j;var t=A[i];A[i]=A[p];A[p]=t;if(Math.abs(A[i][i])<1e-12)return {error:"The listings do not vary enough in size to fit a curve.",n:d.length};
+      for(j=0;j<k;j++){if(j===i)continue;var f=A[j][i]/A[i][i];for(l=i;l<=k;l++)A[j][l]-=f*A[i][l]}}
+    var b=[];for(i=0;i<k;i++)b.push(A[i][k]/A[i][i]);
+    var elast=b[1],cu=useU?b[2]:0,cn=useN?b[useU?3:2]:0;
+    var adj=d.map(function(r){return Math.exp(r.y-elast*r.la-cu*r.u-cn*r.n)});
+    var ss=0,st=0,my=d.reduce(function(s,r){return s+r.y},0)/d.length;d.forEach(function(r){var e=r.y-(b[0]+elast*r.la+cu*r.u+cn*r.n);ss+=e*e;st+=(r.y-my)*(r.y-my)});
+    return {n:d.length,elast:elast,upper:useU?(1-Math.exp(cu))*100:null,low:quantile(adj,.25),high:quantile(adj,.5),q3:quantile(adj,.75),intercept:Math.exp(b[0]),r2:st>0?1-ss/st:0,adj:adj};
+  }
+
+  function screenComps(comps,rules){rules=rules||{};var txt=(rules.reraText==null?"/KARJAN/":rules.reraText).toUpperCase(),minC=rules.minCarpet==null?300:rules.minCarpet,carpetOnly=rules.carpetOnly!==false;
+    var out=comps.map(function(c){var psf=c.carpet>0?c.price/c.carpet:0,why="";
+      if(!c.include)why="Switched off";
+      else if(txt&&(c.rera||"").toUpperCase().indexOf(txt)<0)why="RERA number lacks "+txt;
+      else if(carpetOnly&&c.basis!=="carpet")why="Not quoted on carpet area";
+      else if(c.carpet<minC)why="Unit under "+minC+" sq ft";
+      else if(!(psf>0))why="Missing price or area";
+      return Object.assign({},c,{psf:psf,why:why});});
+    function projects(){var g={};out.forEach(function(c){if(c.why)return;var k=(c.rera||c.name).toUpperCase();(g[k]=g[k]||[]).push(c.psf)});return Object.keys(g).map(function(k){return {key:k,psf:g[k].reduce(function(s,x){return s+x},0)/g[k].length}});}
+    var pj=projects();
+    if(pj.length>=4){var v=pj.map(function(p){return p.psf}),q1=quantile(v,.25),q3=quantile(v,.75),iqr=q3-q1,bad={};
+      pj.forEach(function(p){if(p.psf<q1-1.5*iqr||p.psf>q3+1.5*iqr)bad[p.key]=1});
+      out.forEach(function(c){if(!c.why&&bad[(c.rera||c.name).toUpperCase()])c.why="Statistical outlier (1.5×IQR)"});pj=projects();}
+    var used=pj.map(function(p){return p.psf});
+    return {rows:out,used:used,median:quantile(used,.5),min:used.length?Math.min.apply(null,used):NaN,max:used.length?Math.max.apply(null,used):NaN,n:used.length};
+  }
+
+  // Largest price a buyer can pay. Taxes and the bank's loan-to-value depend on the price itself, so solve inside each price band
+  // (RBI LTV slabs ₹30 L / ₹75 L; 1% GST band up to the affordable cap for small flats) and keep the highest reachable price.
+  function buyerMax(b,unit,isShop,status,x){
+    var foir=Math.min(70,Math.max(10,+b.foir||40)),rate=Math.min(18,Math.max(5,+b.rate||8.5)),ten=Math.min(30,Math.max(1,+b.tenure||20)),sav=Math.max(0,+b.savings||0);
+    var cap=pv(rate/100,ten*12,(+b.income||0)*foir/100-(+b.emi||0));
+    var duty=x.stampPct/100+x.regPct/100, carpet=(unit&&unit.carpet)||0;
+    function solve(ltv,g){var t=g+duty,a=(cap+sav)/(1+t),c=sav/(1-ltv+t);return {max:Math.min(a,c),bind:a<c?"income (EMI limit)":"savings for down payment"};}
+    if(isShop){var o=solve(x.ltvShop/100,status==="ready"?0:shopGst(x));return {max:Math.max(0,o.max),bind:o.bind};}
+    var cuts=[0,3e6,7.5e6,Infinity],aff=x.affCap*1e5,small=carpet/SQM<=x.affSqm&&status!=="ready";
+    if(small&&aff>0)cuts.push(aff);cuts=cuts.filter(function(v,i,a){return a.indexOf(v)===i}).sort(function(p,q){return p-q});
+    var best=null;
+    for(var i=0;i<cuts.length-1;i++){var lo=cuts[i],hi=cuts[i+1],ltv=(hi<=3e6?x.ltv1:hi<=7.5e6?x.ltv2:x.ltv3)/100;
+      var g=status==="ready"?0:(small&&hi<=aff?x.gstAff:x.gstStd)/100,o=solve(ltv,g),m=Math.min(o.max,hi);
+      if(m>lo&&(!best||m>best.max))best={max:m,bind:o.max>hi?(hi===aff&&small?"GST rises from "+x.gstAff+"% to "+x.gstStd+"% above ₹"+x.affCap+" L":"bank lends less above ₹"+(hi/1e5)+" L (RBI slab)"):o.bind};}
+    return best||{max:0,bind:"savings for down payment"};
+  }
+
+  // Minimum cash and monthly income a buyer needs for a unit at a given price (no other EMIs), using typical loan terms
+  function requirement(price,isShop,carpet,status,x){
+    var t=gst(x,isShop,price,carpet,status)+x.stampPct/100+x.regPct/100;
+    var ltv=isShop?x.ltvShop/100:(price<=3e6?x.ltv1:price<=7.5e6?x.ltv2:x.ltv3)/100;
+    var loan=ltv*price, upfront=price*(1-ltv+t), r=(isShop?x.shopLoanRate:x.loanRate)/1200, n=(isShop?x.shopLoanTenure:x.loanTenure)*12;
+    var emi=r>0?loan*r/(1-Math.pow(1+r,-n)):loan/n;
+    return {upfront:upfront,loan:loan,emi:emi,income:emi/(x.foirStd/100),taxes:price*t,ltv:ltv};
+  }
+  function compute(inp){
+    var x={};Object.keys(P).forEach(function(k){x[k]=val(inp.params||{},k)});
+    if(x.shopHigh<x.shopLow){var t=x.shopHigh;x.shopHigh=x.shopLow;x.shopLow=t;}
+    var pr=inp.project||{}, warn=[], notes=[];
+    var status=pr.status==="ready"?"ready":"uc";
+    var floors=Math.min(12,Math.max(1,Math.round(+pr.floors||1))), rise=x.floorRise/100, load=x.loadingPct/100;
+    var comps=screenComps(inp.comps&&inp.comps.length?inp.comps:COMPS,{reraText:(inp.rules||{}).reraText,minCarpet:x.minCarpet,carpetOnly:(inp.rules||{}).carpetOnly});
+    if(comps.n<1) return {error:"Switch on at least one valid Karjan comparable to set a market rate.",comps:comps,x:x};
+    var flats=[],shops=[];
+    (inp.mix||[]).forEach(function(u){var c=+u.carpet,n=Math.round(+u.count);if(!(n>0&&c>0))return;
+      var kind=u.kind==="shop"||u.kind==="shopU"?"shop":"flat";
+      var r={id:u.id,label:String(u.label||"Unit").slice(0,30),kind:kind,upper:u.kind==="shopU",carpet:Math.min(3000,Math.max(100,c)),count:Math.min(500,n)};
+      r.sba=r.carpet*(1+load);(kind==="shop"?shops:flats).push(r);});
+    if(!flats.length&&!shops.length) return {error:"Add at least one unit type with a carpet area and a count.",comps:comps,x:x};
+    var sum=function(a,f){return a.reduce(function(s,y){return s+f(y)},0)};
+    var flatCarpet=sum(flats,function(r){return r.carpet*r.count}),shopCarpet=sum(shops,function(r){return r.carpet*r.count});
+    x._comShare=(flatCarpet+shopCarpet)?shopCarpet/(flatCarpet+shopCarpet):0;
+    var sbaTot=(flatCarpet+shopCarpet)*(1+load),units=sum(flats,function(r){return r.count})+sum(shops,function(r){return r.count});
+    var plot=Math.min(500000,Math.max(1000,+inp.plotArea||30000)),fsi=sbaTot/plot,fsiOk=fsi<=x.fsiMax+1e-9;
+    var K={};
+    K.land=plot*x.landRate; K.landDuty=K.land*x.landDutyPct/100; K.constr=x.constrRate*sbaTot;
+    K.approvals=x.approvalsPct/100*K.constr; K.prof=x.archPct/100*K.constr; K.cont=x.contPct/100*K.constr; K.siteDev=x.siteDevPct/100*K.constr;
+    K.rera=reraFee(plot/SQM,(flatCarpet+shopCarpet)?shopCarpet/(flatCarpet+shopCarpet):0,x);
+    var fixed=K.land+K.landDuty+K.constr+K.approvals+K.prof+K.cont+K.siteDev+K.rera;
+    var v=(x.brokPct+x.mktPct+x.finPct+x.overheadPct)/100, m=x.targetNet/100;
+    var avgRise=1+rise*(floors-1)/2, topRise=1+rise*(floors-1);
+    var market=comps.median*(1+x.posPct/100);
+    // Shops move with the flat rate: at the comparable median they sit at the Karjan residential rate × ratio × size factor
+    shops.forEach(function(r){r.size=shopSizeFactor(r.sba,x);r.flr=shopFloorFactor(r.upper,x);r.perRateLow=x.resKarjan/comps.median*x.shopLow*r.size*r.flr;r.perRateHigh=x.resKarjan/comps.median*x.shopHigh*r.size*r.flr;});
+    // Revenue is linear in the flat rate: revenue = rate × denomArea
+    var denomArea=flatCarpet*avgRise+sum(shops,function(r){return r.count*r.sba*r.perRateLow});
+    function rateFor(req,isAmt){var d=isAmt?1-v:1-v-req;if(!(d>0)||!(denomArea>0))return Infinity;return (fixed+(isAmt?req:0))/d/denomArea;}
+    var need0=rateFor(0,false), needT=x.targetMode==="amount"?rateFor(x.targetAmt*1e5,true):rateFor(m,false);
+    var rate=x.method==="margin"?needT:x.method==="higher"?Math.max(market,needT):x.method==="lower"?Math.min(market,needT):market;
+    if(!isFinite(rate)) return {error:"Sales & finance costs plus the required profit reach 100% of revenue. Lower one of them.",comps:comps,x:x};
+
+    var list=flats.map(function(r){var fp=[];for(var f=0;f<floors;f++)fp.push(rate*(1+rise*f)*r.carpet);
+      return Object.assign({},r,{psf:rate,floorPrices:fp,price:fp[0],top:fp[fp.length-1],avg:rate*avgRise*r.carpet});});
+    var shopList=shops.map(function(r){var lo=rate*r.perRateLow*r.sba,hi=rate*r.perRateHigh*r.sba;
+      return Object.assign({},r,{psfLow:lo/r.sba,psfHigh:hi/r.sba,psfCarpetLow:lo/r.carpet,low:lo,high:hi,price:lo});});
+    list.forEach(function(u){u.req=requirement(u.top,false,u.carpet,status,x);});
+    shopList.forEach(function(u){u.req=requirement(u.high,true,u.carpet,status,x);});
+    var flatRev=sum(list,function(u){return u.avg*u.count}), shopRev=sum(shopList,function(u){return u.low*u.count});
+    var rev=flatRev+shopRev, varCost=v*rev, profit=rev-fixed-varCost, netM=rev?profit/rev:0;
+
+    // Affordability test (does not change any price)
+    var buyers=(inp.buyers||[]).slice(0,3), nb=buyers.length;
+    var needN=x.affordRule==="all"?nb:x.affordRule==="any"?Math.min(1,nb):x.affordRule==="majority"?Math.floor(nb/2)+1:0;
+    var ruleTxt={all:"all",any:"at least one",majority:"most",none:""}[x.affordRule];
+    function kth(ms){var s=ms.slice().sort(function(a,b){return b-a});return needN>0&&s.length?s[Math.min(needN,s.length)-1]:Infinity;}
+    var fit=0,tot=0,unaff=[];
+    list.forEach(function(u){var ms=buyers.map(function(b){return buyerMax(b,u,false,status,x).max});u.nQual=ms.filter(function(mx){return mx>=u.top-1}).length;fit+=u.nQual;tot+=nb;
+      u.affOk=needN===0||u.nQual>=needN;
+      // largest carpet whose top-floor price the required number of buyers can pay (the 1% GST band applies only up to the affordable carpet limit)
+      var smallMax=kth(buyers.map(function(b){return buyerMax(b,{carpet:Math.floor(x.affSqm*SQM)-10},false,status,x).max})),bigMax=kth(buyers.map(function(b){return buyerMax(b,{carpet:Math.ceil(x.affSqm*SQM)+50},false,status,x).max}));
+      var c2=bigMax/(rate*topRise),c1=smallMax/(rate*topRise),lim=x.affSqm*SQM;u.affCarpet=needN?(c2>lim?c2:Math.min(c1,lim)):null;u.buyerMaxes=ms;
+      if(!u.affOk)unaff.push(u.label+" ("+(isFinite(u.affCarpet)?"largest affordable ≈ "+Math.floor(u.affCarpet/10)*10+" sq ft":"")+")");});
+    shopList.forEach(function(u){var ms=buyers.map(function(b){return buyerMax(b,u,true,status,x).max});u.nQual=ms.filter(function(mx){return mx>=u.high-1}).length;fit+=u.nQual;tot+=nb;
+      u.affOk=needN===0||u.nQual>=needN;var M=kth(ms);
+      // price(sba) = rate × perRateHigh/size × (sba/300)^e × sba → invert for the largest affordable super area, then back to carpet
+      if(needN&&isFinite(M)&&M>0){var k=rate*x.resKarjan/comps.median*x.shopHigh*u.flr,e=x.shopElast,s=Math.pow(M/(k*Math.pow(SHOP_REF,-e)),1/(1+e));u.affCarpet=s<SHOP_MIN?0:s/(1+load);}else u.affCarpet=null;
+      if(!u.affOk)unaff.push(u.label+(u.affCarpet?" (largest affordable ≈ "+Math.floor(u.affCarpet/10)*10+" sq ft carpet)":u.affCarpet===0?" (no practical shop size is within reach)":""));});
+
+    var reqProfit=x.targetMode==="amount"?x.targetAmt*1e5:m*rev, meetsReq=profit>=reqProfit-1;
+    var revMkt=market*denomArea, profitMkt=revMkt*(1-v)-fixed, netMkt=revMkt?profitMkt/revMkt:0;
+    if(x.method==="margin"&&rate<market*0.98&&netMkt>netM)notes.push("Your required profit is reached below the market rate. Selling at the comparable median of ₹"+Math.round(market).toLocaleString("en-IN")+" would earn "+(netMkt*100).toFixed(1)+"% net ("+(profitMkt/1e5).toFixed(0)+" L); choose “Higher of margin-led and market” to price there.");
+    var bl=x.bandLow/100,bh=Math.max(x.bandHigh,x.bandLow)/100;var verdict=netM<-1e-9?"loss":netM<bl-1e-9?"weak":netM<=bh+1e-9?"viable":"high";
+    if(!fsiOk)warn.push("The unit mix needs FSI "+fsi.toFixed(2)+", above the "+x.fsiMax.toFixed(1)+" allowed.");
+    if(rate>comps.max*1.0001)warn.push("The rate of ₹"+Math.round(rate).toLocaleString("en-IN")+" is above every switched-on Karjan comparable (highest ₹"+Math.round(comps.max).toLocaleString("en-IN")+"). Expect slower sales.");
+    if(rate<comps.min*0.9999)warn.push("The rate is below every switched-on Karjan comparable (lowest ₹"+Math.round(comps.min).toLocaleString("en-IN")+").");
+    if(verdict==="loss")warn.push("The project loses money at this rate. Break-even is ₹"+Math.round(need0).toLocaleString("en-IN")+" per sq ft carpet.");
+    if(verdict==="weak")warn.push("Net margin of "+(netM*100).toFixed(1)+"% is below your viable band of "+x.bandLow+"–"+x.bandHigh+"%.");
+    if(verdict==="high")warn.push("Net margin of "+(netM*100).toFixed(1)+"% is above your viable band of "+x.bandLow+"–"+x.bandHigh+"%.");
+    if(unaff.length)warn.push("Beyond what "+ruleTxt+" of your target buyers can afford: "+unaff.join("; ")+".");
+    // Sanity notes about the inputs themselves
+    var bhk=flats.map(function(r){var mm=/(\d+)\s*BHK/i.exec(r.label);return mm?{n:+mm[1],r:r}:null}).filter(Boolean).sort(function(a,b){return a.n-b.n||a.r.carpet-b.r.carpet});
+    for(var i=1;i<bhk.length;i++)if(bhk[i].n>bhk[i-1].n&&bhk[i].r.carpet<=bhk[i-1].r.carpet)notes.push(bhk[i].r.label+" ("+bhk[i].r.carpet+" sq ft) is not larger than "+bhk[i-1].r.label+" ("+bhk[i-1].r.carpet+" sq ft), so it will not cost more. Check the carpet areas.");
+    shops.forEach(function(r){if(r.sba<110||r.sba>800)notes.push(r.label+": "+Math.round(r.sba)+" sq ft super area is outside the 110–800 sq ft range where most shop listings sit, so its ₹/sq ft is an extrapolation"+(r.sba>SHOP_MAX||r.sba<SHOP_MIN?" (held at the "+(r.sba>SHOP_MAX?SHOP_MAX:SHOP_MIN)+" sq ft rate)":"")+".");});
+    return {x:x,comps:comps,K:K,fixed:fixed,v:v,market:market,need0:need0,needT:needT,rate:rate,needBuyers:needN,ruleTxt:ruleTxt,reqProfit:reqProfit,meetsReq:meetsReq,floors:floors,avgRise:avgRise,topRise:topRise,load:load,status:status,
+      sbaTot:sbaTot,plot:plot,fsi:fsi,fsiOk:fsiOk,units:units,flatCarpet:flatCarpet,shopCarpet:shopCarpet,denomArea:denomArea,list:list,shopList:shopList,
+      flatRev:flatRev,shopRev:shopRev,rev:rev,varCost:varCost,profit:profit,netM:netM,verdict:verdict,warn:warn,notes:notes,netMkt:netMkt,profitMkt:profitMkt,fit:fit,fitTot:tot,unaffordable:unaff.length,
+      outside:outside(inp.params||{}),changed:changedKeys(inp.params||{})};
+  }
+  return {P:P,SELECTS:SELECTS,COMPS:COMPS,SHOPS:SHOPS,SHOP_REF:SHOP_REF,defaults:defaults,val:val,compute:compute,buyerMax:buyerMax,gst:gst,screenComps:screenComps,quantile:quantile,pv:pv,reraFee:reraFee,fitShops:fitShops,shopSizeFactor:shopSizeFactor,requirement:requirement};
+})();
+
+
+var DEFAULTS = {
+  project:{name:"EFCO Residency (example)", location:"Near NH-48, Karjan, Vadodara district", floors:5, status:"uc", amenities:"Lift, 24×7 security & CCTV, Covered parking, Power backup, Children's play area"},
+  plotArea:30000,
+  mix:[
+    {id:"u1",label:"1 BHK",kind:"flat",carpet:420,count:12},
+    {id:"u2",label:"2 BHK",kind:"flat",carpet:520,count:28},
+    {id:"u3",label:"3 BHK",kind:"flat",carpet:800,count:8},
+    {id:"u4",label:"Shop (ground floor)",kind:"shop",carpet:450,count:8}
+  ],
+  params:null,
+  comps:null,
+  buyers:[
+    {tpl:"pro", label:"Salaried professional household", income:100000, emi:0, savings:1500000, rate:8.5, tenure:20, foir:40},
+    {tpl:"senior", label:"Senior manager / doctor family", income:150000, emi:10000, savings:2000000, rate:8.5, tenure:20, foir:40},
+    {tpl:"investor", label:"Established business owner / investor", income:300000, emi:0, savings:5000000, rate:9.6, tenure:15, foir:40}
+  ]
+};
+
+
+(function(){
+"use strict";
+var E=ENGINE, PP=E.P;
+var SRC=[
+ ["S1","Square Yards, “Property Rates in Karjan, Vadodara 2026” (figures as of Sep 2026)","https://www.squareyards.com/property-rates/karjan-vadodara"],
+ ["S2","99acres, “Karjan, Vadodara: Map, Property Rates, Projects”","https://www.99acres.com/karjan-vadodara-overview-piffid"],
+ ["S3","Houssed, “Kuber Ishwar City, Karjan” (RERA …/KARJAN/…/RAA11389/040323)","https://houssed.com/vadodara/kuber-ishwar/kuber-ishwar-city-122824"],
+ ["S4","Houssed, “Shree Prerna Residency, Karjan” (RERA …/KARJAN/…/RAA09416)","https://houssed.com/vadodara/shree-sm2-infra/shree-prerna-residency-11796"],
+ ["S5","Houssed, “Shantikunj Residency, Karjan” (RERA …/KARJAN/…/MAA11128/020123)","https://houssed.com/vadodara/shantikunj-enterprise/shantikunj-residency-123617"],
+ ["S6","Houssed, “Aakar Adarsh Residency, Karjan” (built-up basis; excluded)","https://houssed.com/vadodara/aakar-group/aakar-adarsh-residency-2786"],
+ ["S7","Houssed, “Swastik Complex” (RERA registered in Vadodara; excluded)","https://houssed.com/vadodara/swastik-developers/swastik-complex-149564"],
+ ["S8","Houssed, “Prayosha Residency” (RERA registered in Vadodara; excluded)","https://houssed.com/vadodara/prayosha-enterprise/prayosha-residency-107630"],
+ ["S9","Houssed, “Shree Maa Bless, Karjan” (206 sq ft 1 RK; excluded)","https://houssed.com/vadodara/shree-krishna-developers/shree-maa-bless-154970"],
+ ["S10","RealEstateIndia, “Property for Sale in Karjan, Vadodara” (plot listings)","https://www.realestateindia.com/vadodara-property/property-for-sale-in-karjan.htm"],
+ ["S11","99acres, “Plots for Sale in Karjan, Vadodara”","https://www.99acres.com/residential-land-in-karjan-vadodara-ffid"],
+ ["S12","InfraLens, “Construction Cost Vadodara 2026” (grade bands)","https://infralens.in/knowledge/construction-cost-vadodara-2026"],
+ ["S13","IndiaLandConverter, “Construction Cost: Vadodara” (₹2,128 base civil rate)","https://www.indialandconverter.in/construction-cost/gujarat/vadodara"],
+ ["S14","RealtyPromoo, “Profit Margins of Developers in India 2026” (reviewed 18 May 2026)","https://realtypromoo.com/guides/what-are-the-profit-margins-of-branded-developers-in-india-an-insight"],
+ ["S15","Studio Matrx, “Architect Fee Structures in India” (CoA 2020 scale; May 2026)","https://www.studiomatrx.org/guides/architect-fee-structures-india"],
+ ["S16","InfraLens, “Contingency” (CPWD 3–5%; private 5–10%)","https://infralens.in/term/contingency"],
+ ["S17","MeraWazood, “Real Estate Commission in India” (20 May 2026)","https://www.merawazood.com/blog/tips/how-the-real-estate-commission-works-in-india"],
+ ["S18","LemonTalks, “Real Estate Marketing Cost in India” (20 Sep 2026)","https://lemontalks.com/insights/real-estate-marketing-cost-guide"],
+ ["S19","Square Yards, “RERA Gujarat: Registration & Fees” (updated 22 Nov 2024)","https://www.squareyards.com/blog/rera-gujarat-rerat"],
+ ["S20","MemberOfArchitecture, “Building Permission in Vadodara” (CGDCR Table 6.9; 17 Oct 2026)","https://www.memberofarchitecture.com/blog/6a96e4a82bf7a28e23c8-authorities-made-easy-building-permission-land-conversion-vadodara"],
+ ["S21","Housing.com, “Loading Factor in Apartments” (Dec 2024, updated Sep 2025)","https://housing.com/news/loading-factor-in-apartments/"],
+ ["S22","Anurag Sodani, “Stamp Duty and Registration Charges in Gujarat,” HomeFirst (11 Jun 2026)","https://homefirstindia.com/blog/article/stamp-duty-registration-charges-gujarat/"],
+ ["S23","Busy.in, “GST Rate on Commercial Property” (18 Sep 2026)","https://busy.in/gst-rates/commercial-property"],
+ ["S24","Ajmera Realty, “GST on Under-Construction Flats” (33rd GST Council, Feb 2019)","https://ajmera.com/gst-for-under-construction-flats/"],
+ ["S25","Anurag Sodani, “RBI Guidelines for Home Loan,” HomeFirst (16 Jun 2026)","https://homefirstindia.com/blog/article/rbi-guidelines-for-home-loan"],
+ ["S26","Ujjivan Small Finance Bank, “FOIR and Loan Approval” (4 Feb 2025)","https://www.ujjivansfb.bank.in/banking-blogs/home-loan/foir-full-form-meaning-and-impact-on-loan-approval"],
+ ["S27","HelloBanker, “SBI Home Loan Interest Rate October 2026” (17 Oct 2026)","https://hellobanker.in/sbi-home-loan-interest-rate-october-2026/"],
+ ["S28","WorkIndia, “Jobs in Karjan, Vadodara” (Sep–Oct 2026)","https://www.workindia.in/jobs-in-karjan-vadodara/"],
+ ["S29","RealEstateIndia, “Commercial Shops for Sale in Vadodara” (Oct 2026)","https://www.realestateindia.com/vadodara-property/commercial-shops-for-sale.htm"],
+ ["S30","OLX, “Shops & Offices for Sale, Vadodara” (Oct 2026)","https://www.olx.in/en-in/padra_g4393775/for-sale-shops-offices_c1733/q-shop"],
+ ["S31","RealEstateIndia, “Commercial Shops for Sale in Vadodara, ₹41–50 lakh and ₹71–90 lakh” (Oct 2026)","https://www.realestateindia.com/vadodara-property/commercial-shops-for-sale-price-41-lakhs-to-50-lakhs.htm"],
+ ["S32","Quikr Homes, “Commercial Shops for Sale in Vadodara” (Oct 2026)","https://www.quikr.com/homes/property/commercial-shop-for-sale-in-vadodara-cid_390001"],
+ ["S33","RealEstateIndia, “Commercial Shops for Sale in Bharuch” (Oct 2026)","https://www.realestateindia.com/bharuch-property/commercial-shops-for-sale.htm"],
+ ["S34","RealEstateIndia, “Commercial Shops for Sale in Ankleshwar” (Oct 2026)","https://www.realestateindia.com/anklesvar-property/commercial-shops-for-sale.htm"],
+ ["S35","BarodaRealty (Sunfin Realty), “Prevailing Market Rates, Vadodara” (tentative rates, Jan 2024)","https://www.barodarealty.com/prevailing_market_rates"],
+ ["S36","Square Yards, “Property Rates in Bharuch” and “Property Rates in Ankleshwar” (Sep–Oct 2026)","https://www.squareyards.com/property-rates-in-bharuch"]
+];
+var TPL={
+  pro:{label:"Salaried professional household",income:100000,emi:0,savings:1500000,rate:8.5,tenure:20,foir:40,why:"Good income; can buy any flat and a shop at defaults"},
+  senior:{label:"Senior manager / doctor family",income:150000,emi:10000,savings:2000000,rate:8.5,tenure:20,foir:40,why:"Upper-income family with a car loan"},
+  biz:{label:"Business owner (buys flat or shop)",income:150000,emi:0,savings:2500000,rate:9.6,tenure:15,foir:40,why:"Self-employed; loan-against-property style rate 9.20–10.75% (S27)"},
+  commuter:{label:"Vadodara commuter, dual income",income:80000,emi:5000,savings:900000,rate:8.5,tenure:20,foir:40,why:"Works in Vadodara, buys in Karjan for price"},
+  govt:{label:"Government employee / teacher",income:65000,emi:0,savings:800000,rate:8.0,tenure:20,foir:45,why:"Stable salary; some lenders allow FOIR up to 50% (S26)"},
+  young:{label:"Young couple, first home",income:55000,emi:4000,savings:500000,rate:8.5,tenure:25,foir:40,why:"Two entry-level salaries"},
+  worker:{label:"Industrial worker household",income:40000,emi:0,savings:400000,rate:8.5,tenure:20,foir:40,why:"Karjan supervisor/engineer salaries ₹20–40k (S28) plus a second income"},
+  nri:{label:"NRI / investor family",income:250000,emi:0,savings:3000000,rate:8.5,tenure:15,foir:40,why:"Long-term holding"},
+  investor:{label:"Established business owner / investor",income:300000,emi:0,savings:5000000,rate:9.6,tenure:15,foir:40,why:"Local trader or industrialist; typical buyer of a large shop or a 3 BHK"}
+};
+var $=function(id){return document.getElementById(id)};
+var inr=function(v){return "₹"+Math.round(v).toLocaleString("en-IN")};
+var lakh=function(v){return Math.abs(v)>=1e7?"₹"+(v/1e7).toFixed(2)+" cr":"₹"+(v/1e5).toFixed(2)+" L"};
+var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
+var cite=function(s){return s==="A"?'<a class="cite asm" href="#basis">A</a>':'<a class="cite" href="#src-'+s+'">'+s+'</a>'};
+var clone=function(o){return JSON.parse(JSON.stringify(o))};
+var LAND0=[{name:"Residential plot, Karjan (S10)",plot:1500,price:1500000},{name:"Residential plot, Karjan (S11)",plot:2457,price:1100000},{name:"Frontage plot, Karjan (S11)",plot:1200,price:5000000}];
+var SHOP0=E.SHOPS;
+var KEY="internal/project_v9", OLDKEY="internal/project_v8";
+function fresh(){var s=clone(DEFAULTS);s.params=E.defaults();s.comps=clone(E.COMPS);s.evidence={land:clone(LAND0),shops:clone(SHOP0)};s.rules={reraText:"/KARJAN/",carpetOnly:true};return s}
+// Older saves used a flat shop ratio (2.8–3.0× the flat rate) and a shop table without sizes; those are replaced by the size-based model
+function merge(sv,old){var f=fresh(),prm=Object.assign({},sv.params||{});if(old){delete prm.shopLow;delete prm.shopHigh;}
+  var ev=sv.evidence||{},shops=Array.isArray(ev.shops)&&ev.shops.length&&ev.shops[0].area!=null?ev.shops:f.evidence.shops;
+  return {project:Object.assign(f.project,sv.project),plotArea:sv.plotArea||f.plotArea,mix:Array.isArray(sv.mix)&&sv.mix.length?sv.mix:f.mix,params:Object.assign(f.params,prm),comps:Array.isArray(sv.comps)&&sv.comps.length?sv.comps:f.comps,buyers:Array.isArray(sv.buyers)&&sv.buyers.length?sv.buyers:f.buyers,evidence:{land:Array.isArray(ev.land)?ev.land:f.evidence.land,shops:shops},rules:Object.assign(f.rules,sv.rules)}}
+var state=fresh(), db=null, canEdit=false, saveTimer=null;
+function toast(t){var el=$("toast");el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(function(){el.hidden=true},2600)}
+function fmtP(k,v){var u=PP[k][1];if(u.indexOf("₹/")===0)return "₹"+Math.round(v).toLocaleString("en-IN");if(u==="₹ lakh")return "₹"+v+" L";if(u.charAt(0)==="%")return v+"%";if(u.indexOf("×")===0)return v.toFixed(2)+"×";if(u==="ratio")return v.toFixed(1);return v+(u.indexOf("%")===0?"%":"")}
+function fmtVal(k,v){var u=PP[k][1];return (u.charAt(0)==="%"||u.indexOf("% ")===0)?(k==="posPct"&&v>0?"+":"")+v+"%":fmtP(k,v)}
+
+function buildStatic(){
+  SRC.forEach(function(s){var li=document.createElement("li");li.id="src-"+s[0];li.innerHTML='<span class="cite">'+s[0]+'</span><span>'+esc(s[1])+'<br><a href="'+s[2]+'" target="_blank" rel="noopener">'+s[2].replace(/^https?:\/\//,"").slice(0,70)+'</a></span>';$("srcList").appendChild(li)});
+  Object.keys(PP).forEach(function(k){if(E.SELECTS[k])return;var d=PP[k],box=$("g_"+d[9]);if(!box)return;
+    var w=document.createElement("div");w.className="sl";w.id="sl_"+k;
+    var lo=(d[3]-d[5])/(d[6]-d[5])*100,hi=(d[4]-d[5])/(d[6]-d[5])*100;
+    w.innerHTML='<label class="l" for="r_'+k+'">'+d[0]+' '+cite(d[8])+'</label><span class="val" id="v_'+k+'"></span>'+
+      '<input type="range" id="r_'+k+'" data-p="'+k+'" min="'+d[5]+'" max="'+d[6]+'" step="'+d[7]+'" style="--lo:'+lo+'%;--hi:'+Math.max(hi,lo+0.8)+'%">'+
+      '<div class="rng"><span>'+fmtVal(k,d[5])+'</span><span>evidence '+(d[3]===d[4]?fmtVal(k,d[3]):fmtVal(k,d[3])+'–'+fmtVal(k,d[4]))+' · default '+fmtVal(k,d[2])+'</span><span>'+fmtVal(k,d[6])+'</span></div>';
+    box.appendChild(w)});
+}
+function fillForm(){
+  var p=state.project;$("p_name").value=p.name;$("p_loc").value=p.location;$("p_amen").value=p.amenities||"";$("p_floors").value=p.floors;$("p_status").value=p.status;$("p_plot").value=state.plotArea;
+  $("m_method").value=E.val(state.params,"method");$("m_afford").value=E.val(state.params,"affordRule");$("m_tmode").value=E.val(state.params,"targetMode");
+  Object.keys(PP).forEach(function(k){if(!E.SELECTS[k])$("r_"+k).value=state.params[k]});
+  $("a_rera").value=state.rules.reraText;$("a_carpet").checked=state.rules.carpetOnly;
+  renderMix();renderComps();renderEvidence();renderBuyers();
+}
+function num(el){var v=parseFloat(el.value);return isNaN(v)?0:v}
+function readForm(){
+  var p=state.project;p.name=$("p_name").value.slice(0,60);p.location=$("p_loc").value.slice(0,80);p.amenities=$("p_amen").value.slice(0,200);
+  p.floors=Math.min(12,Math.max(1,Math.round(num($("p_floors")))));p.status=$("p_status").value;state.plotArea=Math.min(500000,Math.max(1000,num($("p_plot"))));
+  state.params.method=$("m_method").value;state.params.affordRule=$("m_afford").value;
+  state.rules={reraText:$("a_rera").value.trim().slice(0,40),carpetOnly:$("a_carpet").checked};state.params.targetMode=$("m_tmode").value;
+  Object.keys(PP).forEach(function(k){if(E.SELECTS[k])return;var o={};o[k]=num($("r_"+k));state.params[k]=E.val(o,k)});
+  state.mix=[].map.call($("mixBody").rows,function(tr){var q=function(k){return tr.querySelector("[data-k="+k+"]")};return {id:tr.dataset.id,label:q("label").value.slice(0,30),kind:q("kind").value,carpet:Math.min(3000,Math.max(100,num(q("carpet")))),count:Math.min(500,Math.max(0,Math.round(num(q("count")))))}});
+  state.comps=[].map.call($("compBody").rows,function(tr,i){var q=function(k){return tr.querySelector("[data-k="+k+"]")},old=state.comps[i]||{};
+    return {name:q("name").value.slice(0,60),rera:q("rera").value.slice(0,90),carpet:num(q("carpet")),price:num(q("price")),basis:q("basis").value,include:q("inc").checked,status:old.status||"Edited by you",src:old.src||""}});
+  state.evidence.land=[].map.call($("landBody").rows,function(tr){var q=function(k){return tr.querySelector("[data-k="+k+"]")};return {name:q("name").value.slice(0,60),plot:num(q("plot")),price:num(q("price"))}});
+  state.evidence.shops=[].map.call($("shopBody").rows,function(tr,i){var q=function(k){return tr.querySelector("[data-k="+k+"]")},old=state.evidence.shops[i]||{};return {loc:q("loc").value.slice(0,50),area:num(q("area")),price:num(q("price")),floor:q("floor").value,res:num(q("res")),include:q("inc").checked,src:old.src||"",resSrc:old.resSrc||""}});
+  state.buyers=[].map.call($("buyerBox").children,function(c){var g=function(k){return c.querySelector("[data-k="+k+"]")};
+    return {tpl:g("tpl").value,label:g("label").value.slice(0,40),income:Math.max(0,num(g("income"))),emi:Math.max(0,num(g("emi"))),savings:Math.max(0,num(g("savings"))),rate:num(g("rate")),tenure:num(g("tenure")),foir:num(g("foir"))}});
+}
+function renderMix(){
+  var tb=$("mixBody");tb.innerHTML="";
+  state.mix.forEach(function(u){var tr=document.createElement("tr");tr.dataset.id=u.id;
+    tr.innerHTML='<td><input type="text" data-k="label" maxlength="30" value="'+esc(u.label)+'" aria-label="Unit name" style="min-width:72px;width:100%"></td><td><select data-k="kind" aria-label="Unit kind" style="width:88px"><option value="flat">Flat</option><option value="shop">Shop (G)</option><option value="shopU">Shop (upper)</option></select></td>'+
+     '<td><input type="number" data-k="carpet" min="100" max="3000" step="10" value="'+u.carpet+'" aria-label="Carpet area" style="width:62px"></td><td><input type="number" data-k="count" min="0" max="500" step="1" value="'+u.count+'" aria-label="Count" style="width:48px"></td>'+
+     '<td><button type="button" class="small ghost" data-del="1" aria-label="Remove unit type">✕</button></td>';
+    tr.querySelector("[data-k=kind]").value=u.kind;tb.appendChild(tr)});
+}
+function renderComps(){
+  var tb=$("compBody");tb.innerHTML="";
+  state.comps.forEach(function(c){var tr=document.createElement("tr");
+    tr.innerHTML='<td><input type="checkbox" data-k="inc" aria-label="Use comparable" '+(c.include?"checked":"")+'></td>'+
+      '<td><input type="text" data-k="name" maxlength="60" value="'+esc(c.name)+'" aria-label="Project" style="min-width:150px"><input type="text" data-k="rera" maxlength="90" value="'+esc(c.rera)+'" aria-label="RERA number" style="margin-top:3px;font-size:.72rem"></td>'+
+      '<td><input type="number" data-k="carpet" min="100" step="1" value="'+c.carpet+'" aria-label="Carpet" style="width:72px"></td><td><input type="number" data-k="price" min="0" step="10000" value="'+c.price+'" aria-label="Price" style="width:96px"></td>'+
+      '<td><select data-k="basis" aria-label="Basis"><option value="carpet">Carpet</option><option value="builtup">Built-up</option><option value="super">Super</option></select></td><td><button type="button" class="small ghost" data-delrow="1" aria-label="Remove">✕</button></td>';
+    tr.querySelector("[data-k=basis]").value=c.basis;tb.appendChild(tr)});
+}
+function renderEvidence(){
+  var lb=$("landBody");lb.innerHTML="";
+  state.evidence.land.forEach(function(l){var tr=document.createElement("tr");tr.innerHTML='<td><input type="text" data-k="name" maxlength="60" value="'+esc(l.name)+'" aria-label="Listing" style="min-width:140px"></td><td><input type="number" data-k="plot" min="1" value="'+l.plot+'" aria-label="Plot" style="width:78px"></td><td><input type="number" data-k="price" min="0" step="10000" value="'+l.price+'" aria-label="Price" style="width:96px"></td><td class="num" data-k="psf"></td><td><button type="button" class="small ghost" data-delrow="1" aria-label="Remove">✕</button></td>';lb.appendChild(tr)});
+  var sb=$("shopBody");sb.innerHTML="";
+  state.evidence.shops.forEach(function(s){var tr=document.createElement("tr");tr.innerHTML='<td><input type="checkbox" data-k="inc" aria-label="Use listing" '+(s.include!==false?"checked":"")+'></td><td><input type="text" data-k="loc" maxlength="50" value="'+esc(s.loc)+'" aria-label="Locality" style="min-width:150px">'+(s.src?'<span class="hint"> '+cite(s.src)+(s.resSrc?' · flat rate '+cite(s.resSrc):'')+'</span>':'')+'</td>'+
+      '<td><select data-k="floor" aria-label="Floor"><option value="G">Ground</option><option value="U">Upper</option><option value="N">Not stated</option></select></td><td><input type="number" data-k="area" min="1" value="'+s.area+'" aria-label="Area" style="width:66px"></td><td><input type="number" data-k="price" min="0" step="10000" value="'+s.price+'" aria-label="Price" style="width:92px"></td>'+
+      '<td><input type="number" data-k="res" min="1" value="'+s.res+'" aria-label="Locality flat rate" style="width:64px"></td><td class="num" data-k="psf"></td><td class="num" data-k="ratio"></td><td><button type="button" class="small ghost" data-delrow="1" aria-label="Remove">✕</button></td>';
+    tr.querySelector("[data-k=floor]").value=s.floor||"N";sb.appendChild(tr)});
+  updateEvidenceCalc();
+}
+function updateEvidenceCalc(){
+  [].forEach.call($("landBody").rows,function(tr){var p=num(tr.querySelector("[data-k=plot]")),pr=num(tr.querySelector("[data-k=price]"));tr.querySelector("[data-k=psf]").textContent=p?inr(pr/p):"–"});
+  [].forEach.call($("shopBody").rows,function(tr){var a=num(tr.querySelector("[data-k=area]")),p=num(tr.querySelector("[data-k=price]")),c=num(tr.querySelector("[data-k=res]"));tr.querySelector("[data-k=psf]").textContent=a?inr(p/a):"–";tr.querySelector("[data-k=ratio]").textContent=a&&c?(p/a/c).toFixed(2)+"×":"–"});
+}
+function renderBuyers(){
+  var box=$("buyerBox");box.innerHTML="";
+  state.buyers.forEach(function(p,i){var d=document.createElement("div");d.className="persona";
+    var opts=Object.keys(TPL).map(function(k){return '<option value="'+k+'">'+TPL[k].label+'</option>'}).join("")+'<option value="custom">Custom</option>';
+    d.innerHTML='<div class="ph"><b>Buyer '+(i+1)+'</b><select data-k="tpl" aria-label="Buyer template" style="max-width:66%">'+opts+'</select></div>'+
+     '<label class="f">Name<input type="text" data-k="label" maxlength="40" value="'+esc(p.label)+'"></label>'+
+     '<div class="row3"><label class="f">Income ₹/mo<input type="number" data-k="income" step="1000" value="'+p.income+'"></label><label class="f">Other EMIs<input type="number" data-k="emi" step="500" value="'+p.emi+'"></label><label class="f">Savings ₹<input type="number" data-k="savings" step="50000" value="'+p.savings+'"></label></div>'+
+     '<div class="row3"><label class="f">Loan rate %<input type="number" data-k="rate" step="0.05" value="'+p.rate+'"></label><label class="f">Tenure yrs<input type="number" data-k="tenure" step="1" value="'+p.tenure+'"></label><label class="f">FOIR %<input type="number" data-k="foir" step="1" value="'+p.foir+'"></label></div>'+
+     '<p class="hint" data-k="why">'+esc((TPL[p.tpl]||{}).why||"Custom buyer")+'</p>';
+    d.querySelector("[data-k=tpl]").value=TPL[p.tpl]?p.tpl:"custom";box.appendChild(d)});
+}
+
+function render(){
+  updateEvidenceCalc();var inp={project:state.project,plotArea:state.plotArea,mix:state.mix,params:state.params,comps:state.comps,buyers:state.buyers,rules:state.rules}, r=E.compute(inp);
+  Object.keys(PP).forEach(function(k){if(E.SELECTS[k])return;var v=E.val(state.params,k),d=PP[k],out=v<d[3]-1e-9||v>d[4]+1e-9;
+    $("v_"+k).innerHTML=fmtVal(k,v)+(out?' <span class="pill warn">outside evidence</span>':'');$("sl_"+k).classList.toggle("off",out);$("sl_"+k).classList.toggle("moved",Math.abs(v-d[2])>1e-9)});
+  ["pricing","site","costs","sales","shops","tax","admin"].forEach(function(g){var ks=Object.keys(PP).filter(function(k){return PP[k][9]===g}),o=ks.filter(function(k){return r.outside&&r.outside.indexOf(k)>=0}).length,c=ks.filter(function(k){return r.changed&&r.changed.indexOf(k)>=0}).length;
+    $("sum_"+g).textContent=c?(c+" changed"+(o?" · "+o+" outside":"")):"defaults"});
+  if(r.error){$("verdictBox").className="verdict bad";$("verdictBox").textContent=r.error;return null}
+  var K=r.K,x=r.x,P=state.project;
+  $("kRec").textContent=(r.list.length?inr(r.rate):inr(r.shopRev/r.shopCarpet))+"/sq ft";$("kRecD").textContent=(r.list.length?"flats, carpet area · ":"average shop rate, carpet area · ")+({margin:"set by required profit of "+(x.targetMode==="amount"?"₹"+x.targetAmt+" L":x.targetNet+"%"),market:"market median",higher:"higher of margin-led and market",lower:"lower of margin-led and market"})[x.method];
+  $("kNet").textContent=lakh(r.profit);$("kNetD").innerHTML=(r.netM*100).toFixed(1)+"% net margin · required "+lakh(r.reqProfit)+(r.meetsReq?' <span class="ok">✓ met</span>':' <span class="no">✕ short '+lakh(r.reqProfit-r.profit)+'</span>');
+  var amt=x.targetMode==="amount";$("sl_targetNet").hidden=amt;$("sl_targetAmt").hidden=!amt;
+  var mn=-0.10,mx=0.35,ps=function(v){return Math.max(0,Math.min(100,(v-mn)/(mx-mn)*100))};
+  $("netMeter").innerHTML='<div class="zone" style="left:'+ps(0.05)+'%;width:'+(ps(0.15)-ps(0.05))+'%"></div><div class="dot" style="left:'+ps(r.netM)+'%"></div>';
+  var V={viable:["Viable","good","Margin in the typical range"],high:["High margin","warn","Above the typical range"],weak:["Fragile","warn","Below the typical range"],loss:["Not viable","bad","Loses money at this rate"]}[r.verdict];
+  if(!r.fsiOk)V=["Over FSI","bad","Unit mix exceeds allowed FSI"];
+  $("kVerdict").textContent=V[0];$("kVerdictPill").className="vpill "+V[1];$("kVerdictPill").textContent=V[2];
+  // buyers matrix (flats at top floor, shops at high end)
+  var units=r.list.map(function(u){return {label:u.label,isShop:false,carpet:u.carpet,price:u.top}}).concat(r.shopList.map(function(u){return {label:u.label,isShop:true,carpet:u.carpet,price:u.high}}));
+  var fit=0,tot=0,mh='<tr><th>Buyer</th>'+units.map(function(u){return '<th class="num">'+esc(u.label)+'<br><span class="hint">'+lakh(u.price)+'</span></th>'}).join("")+'</tr>';
+  state.buyers.forEach(function(b){mh+='<tr><td><strong>'+esc(b.label)+'</strong><br><span class="hint">'+inr(b.income)+'/mo · savings '+lakh(b.savings)+'</span></td>';
+    units.forEach(function(u){var o=E.buyerMax(b,u,u.isShop,r.status,x),ok=o.max>=u.price-1;tot++;if(ok)fit++;
+      mh+='<td class="num">'+(ok?'<span class="ok">✓</span> up to '+lakh(o.max):'<span class="no">✕</span> short '+lakh(u.price-o.max)+'<br><span class="hint">'+o.bind+'</span>')+'</td>'});mh+='</tr>'});
+  $("tMatrix").innerHTML=mh;$("kFit").textContent=fit+" of "+tot;$("kFitD").textContent="buyer × unit pairs that qualify"+(r.unaffordable?" · "+r.unaffordable+" unit type"+(r.unaffordable>1?"s":"")+" beyond "+r.ruleTxt+" buyers":"");
+  drawChart(r);
+  var vb=$("verdictBox"),head,body;
+  if(!r.fsiOk){head="The unit mix does not fit the plot.";body=r.warn[0]}
+  else if(!r.meetsReq){head="The required profit is not reached.";body="Profit is "+lakh(r.profit)+" against "+lakh(r.reqProfit)+" required, because the "+(x.method==="market"?"market":"lower-of")+" method prices below the "+inr(r.needT)+" per sq ft the required profit needs. Break-even is "+inr(r.need0)+" per sq ft carpet. "+r.warn.filter(function(w){return w.indexOf("The project loses money")!==0}).join(" ")}
+  else if(r.verdict==="viable"){head="The project is viable at the required profit.";body="Break-even is "+inr(r.need0)+" and the required profit needs "+inr(r.needT)+" per sq ft carpet; the predicted rate of "+inr(r.rate)+" sits "+((r.rate/r.need0-1)*100).toFixed(0)+"% above break-even."+(r.warn.length?" "+r.warn.join(" "):"")}
+  else{head={high:"Margin is higher than small developers usually earn.",weak:"The project is fragile at this rate.",loss:"The project does not work at this rate."}[r.verdict];body=r.warn.join(" ")}
+  vb.className="verdict "+V[1];vb.innerHTML='<div><b>'+esc(head)+'</b>'+esc(body)+(r.notes.length?'<ul class="vnotes">'+r.notes.map(function(n){return '<li>'+esc(n)+'</li>'}).join("")+'</ul>':'')+'</div>';
+  // price list
+  var h='<tr><th>Unit</th><th class="num">Carpet</th><th class="num">₹/sq ft</th><th class="num">Ground / low</th><th class="num">Top / high</th><th class="num">Units</th><th>Affordability</th></tr>';
+  function aff(u){var nb=state.buyers.length,cls=r.needBuyers===0?"neutral":u.affOk?"good":(u.nQual?"warn":"bad");
+    return '<span class="pill '+cls+'">'+u.nQual+' of '+nb+' buyers</span>'+(r.needBuyers&&u.affCarpet&&isFinite(u.affCarpet)&&(!u.affOk||u.affCarpet<u.carpet*1.25)?'<br><span class="hint">'+r.ruleTxt+' buyers reach up to '+Math.floor(u.affCarpet/10)*10+' sq ft carpet</span>':(r.needBuyers&&u.affCarpet===0&&!u.affOk?'<br><span class="hint">no shop size is within reach of '+r.ruleTxt+' buyers</span>':''));}
+  r.list.forEach(function(u){h+='<tr><td><strong>'+esc(u.label)+'</strong></td><td class="num">'+u.carpet+'</td><td class="num">'+inr(u.psf)+'</td><td class="num"><strong>'+lakh(u.floorPrices[0])+'</strong></td><td class="num">'+lakh(u.top)+'</td><td class="num">'+u.count+'</td><td>'+aff(u)+'</td></tr>'});
+  r.shopList.forEach(function(u){h+='<tr><td><strong>'+esc(u.label)+'</strong><br><span class="hint">'+Math.round(u.sba)+' sq ft super'+(u.upper?' · upper floor':'')+'</span></td><td class="num">'+u.carpet+'</td><td class="num">'+inr(u.psfCarpetLow)+'<br><span class="hint">'+inr(u.psfLow)+'–'+inr(u.psfHigh)+' super</span></td><td class="num"><strong>'+lakh(u.low)+'</strong></td><td class="num">'+lakh(u.high)+'</td><td class="num">'+u.count+'</td><td>'+aff(u)+'</td></tr>'});
+  $("tUnits").innerHTML=h;
+  $("priceNote").innerHTML="Flats: rate × carpet area, plus "+x.floorRise+"% per floor, so price always rises with size. Ground / low is the ground-floor flat or the low end for a shop; top / high is the top floor or the high end. Shops: priced by size from listings "+cite("S29")+"–"+cite("S34")+" (see the next card); revenue counts the low end. ₹/sq ft for shops is shown on carpet, with the super-area rate below.";
+  drawShops(r);
+  var ch='<tr><th>Unit</th><th class="num">Highest price</th><th class="num">Cash needed upfront</th><th class="num">EMI</th><th class="num">Min. income / month</th><th>Can buy</th><th>Cannot buy</th></tr>';
+  r.list.map(function(u){return {u:u,isShop:false,price:u.top}}).concat(r.shopList.map(function(u){return {u:u,isShop:true,price:u.high}})).forEach(function(o){var q=o.u.req,yes=[],no=[];
+    Object.keys(TPL).forEach(function(k){var T=TPL[k],m=E.buyerMax(T,{carpet:o.u.carpet},o.isShop,r.status,x).max;(m>=o.price-1?yes:no).push(T.label.replace(/ \(.*\)/,""))});
+    ch+='<tr><td><strong>'+esc(o.u.label)+'</strong></td><td class="num">'+lakh(o.price)+'</td><td class="num">'+lakh(q.upfront)+'<br><span class="hint">'+Math.round((1-q.ltv)*100)+'% down + taxes</span></td><td class="num">'+inr(q.emi)+'</td><td class="num"><strong>'+inr(q.income)+'</strong></td><td><span class="hint">'+(yes.length?esc(yes.join(", ")):"none of the templates")+'</span></td><td><span class="hint">'+(no.length?esc(no.join(", ")):"—")+'</span></td></tr>'});
+  $("tCust").innerHTML=ch;
+  // revenue split
+  var items=[["Land & land duty",K.land+K.landDuty,"S10","var(--navy-2)"],["Construction",K.constr,"S12","var(--brand)"],["Approvals, fees, RERA",K.approvals+K.prof+K.rera,"S14","#8a96b3"],["Contingency & site development",K.cont+(K.siteDev||0),"S16","var(--warn)"],["Sales & finance",r.varCost,"S14","var(--bad)"],["Net profit",Math.max(0,r.profit),"","var(--good)"]];
+  var ch='<tr><th>Line</th><th class="num">₹</th><th class="num">% of revenue</th></tr>',bar="",leg="",base=Math.max(r.rev,r.fixed+r.varCost);
+  items.forEach(function(it){if(!it[1])return;ch+='<tr><td>'+it[0]+' '+(it[2]?cite(it[2]):"")+'</td><td class="num">'+lakh(it[1])+'</td><td class="num">'+(it[1]/r.rev*100).toFixed(1)+'%</td></tr>';
+    bar+='<span title="'+it[0]+'" style="width:'+(it[1]/base*100)+'%;background:'+it[3]+'"></span>';leg+='<span><i style="background:'+it[3]+'"></i>'+it[0]+'</span>'});
+  if(r.profit<0)ch+='<tr><td class="no">Loss</td><td class="num no">'+lakh(r.profit)+'</td><td class="num no">'+(r.profit/r.rev*100).toFixed(1)+'%</td></tr>';
+  ch+='<tr><td><strong>Revenue</strong></td><td class="num"><strong>'+lakh(r.rev)+'</strong></td><td class="num">100%</td></tr>';
+  $("tCost").innerHTML=ch;$("costBar").innerHTML=bar;$("costLegend").innerHTML=leg;
+  // audit
+  var ah='<tr><th>Setting</th><th class="num">Default</th><th class="num">Now</th></tr>',n=0;
+  r.changed.forEach(function(k){n++;var SEL={method:{margin:"Profit-led",market:"Market",higher:"Higher of both",lower:"Lower of both"},affordRule:{majority:"Most buyers",all:"All buyers",any:"One buyer",none:"No cap"},targetMode:{pct:"% of revenue",amount:"₹ amount"}};var d=PP[k],now=E.SELECTS[k]?SEL[k][E.val(state.params,k)]:fmtVal(k,E.val(state.params,k)),def=E.SELECTS[k]?SEL[k][d[2]]:fmtVal(k,d[2]),out=r.outside.indexOf(k)>=0;
+    ah+='<tr'+(out?' style="background:var(--warn-soft)"':'')+'><td>'+d[0]+(out?' <span class="pill warn">outside evidence</span>':'')+'</td><td class="num">'+def+'</td><td class="num">'+now+'</td></tr>'});
+  var off=state.comps.filter(function(c,i){return E.COMPS[i]&&!c.include}).length,added=state.comps.length-E.COMPS.length;
+  if(off){n++;ah+='<tr><td>Default comparables switched off</td><td class="num">0</td><td class="num">'+off+'</td></tr>'}
+  if(added>0){n++;ah+='<tr><td>Comparables added</td><td class="num">0</td><td class="num">'+added+'</td></tr>'}
+  $("tAudit").innerHTML=n?ah:'<tr><td class="note">No changes. Every setting is at its default.</td></tr>';
+  // comps
+  var c='<tr><th>Comparable</th><th class="num">₹/sq ft</th><th>Result</th></tr>';
+  r.comps.rows.forEach(function(y){c+='<tr class="'+(y.why?"excl":"")+'"><td>'+esc(y.name)+' '+(y.src?cite(y.src):"")+'<br><span class="hint">'+esc(y.status||"")+'</span></td><td class="num">'+inr(y.psf)+'</td><td>'+(y.why?'<span class="pill warn">'+esc(y.why)+'</span>':'<span class="pill good">Used</span>')+'</td></tr>'});
+  $("tComps").innerHTML=c;
+  $("sumMix").textContent=r.units+" units · FSI "+r.fsi.toFixed(2);$("sumComp").textContent=r.comps.n+" used";
+  return r;
+}
+function drawShops(r){
+  var x=r.x,load=r.load,k=r.rate/r.comps.median*x.resKarjan,f=E.fitShops(state.evidence.shops),pts=[];
+  // listing points: ground-equivalent ratio (shop ÷ locality flat rate), at their own size
+  if(!f.error){var rows=state.evidence.shops.filter(function(s){return s.include!==false&&s.area>0&&s.price>0&&s.res>0});
+    rows.forEach(function(s,i){var g=s.floor==="U"?1-x.shopUpper/100:1;pts.push({a:s.area,y:s.price/s.area/s.res/g,src:s.loc})})}
+  var W=680,H=220,L=48,R=16,T=14,B=34,amin=100,amax=2500,lx=function(a){return L+(Math.log(a)-Math.log(amin))/(Math.log(amax)-Math.log(amin))*(W-L-R)};
+  var ymax=Math.max(8,Math.min(12,Math.max.apply(null,pts.map(function(p){return p.y}).concat([x.shopHigh*1.6])))),ly=function(v){return T+(1-Math.min(v,ymax)/ymax)*(H-T-B)};
+  var g="";[100,200,300,500,1000,2500].forEach(function(a){g+='<line x1="'+lx(a)+'" x2="'+lx(a)+'" y1="'+T+'" y2="'+(H-B)+'" stroke="var(--line)"/><text x="'+lx(a)+'" y="'+(H-B+14)+'" font-size="10" text-anchor="middle" fill="var(--muted)" font-family="var(--f-num)">'+a+'</text>'});
+  for(var v=0;v<=ymax;v+=2)g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+ly(v)+'" y2="'+ly(v)+'" stroke="var(--line)"/><text x="'+(L-6)+'" y="'+(ly(v)+3)+'" font-size="10" text-anchor="end" fill="var(--muted)" font-family="var(--f-num)">'+v+'×</text>';
+  var dots=pts.map(function(p){return '<circle cx="'+lx(Math.min(amax,Math.max(amin,p.a)))+'" cy="'+ly(p.y)+'" r="3.5" fill="var(--brand)" fill-opacity=".45"><title>'+esc(p.src)+' · '+p.a+' sq ft · '+p.y.toFixed(2)+'×</title></circle>'}).join("");
+  function curve(ratio,col,dash){var d="";for(var i=0;i<=40;i++){var a=Math.exp(Math.log(amin)+i/40*(Math.log(amax)-Math.log(amin)));d+=(i?"L":"M")+lx(a).toFixed(1)+" "+ly(ratio*E.shopSizeFactor(a,x)).toFixed(1)}return '<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2.5"'+(dash?' stroke-dasharray="5 4"':'')+'/>'}
+  var mine=r.shopList.map(function(u){var y=x.shopLow*u.size;return '<circle cx="'+lx(Math.min(amax,Math.max(amin,u.sba)))+'" cy="'+ly(y)+'" r="6.5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"><title>'+esc(u.label)+'</title></circle>'}).join("");
+  $("shopChart").innerHTML='<svg viewBox="0 0 '+W+' '+H+'" role="img"><title>Shop rate as a multiple of the local flat rate, by shop super area</title>'+g+dots+curve(x.shopHigh,"var(--muted)",true)+curve(x.shopLow,"var(--brand)",false)+mine+
+    '<text x="'+(W-R)+'" y="'+(H-4)+'" font-size="10" text-anchor="end" fill="var(--muted)">Shop super area, sq ft (log scale)</text></svg>'+
+    '<div class="legend"><span><i style="background:var(--brand);opacity:.45"></i>Listings (ground-floor equivalent)</span><span><i style="background:var(--brand)"></i>Low curve (revenue)</span><span><i style="background:var(--muted)"></i>High curve</span><span><i style="background:var(--accent)"></i>Your shops</span></div>';
+  var h='<tr><th class="num">Carpet sq ft</th><th class="num">Super sq ft</th><th class="num">₹/sq ft super</th><th class="num">Ground floor</th><th class="num">Upper floor</th></tr>';
+  [100,150,200,250,300,400,500,750,1000].forEach(function(c){var sba=c*(1+load),lo=k*x.shopLow*E.shopSizeFactor(sba,x),hi=k*x.shopHigh*E.shopSizeFactor(sba,x),up=1-x.shopUpper/100;
+    h+='<tr><td class="num">'+c+'</td><td class="num">'+Math.round(sba)+'</td><td class="num">'+inr(lo)+'–'+inr(hi)+'</td><td class="num"><strong>'+lakh(lo*sba)+'</strong> – '+lakh(hi*sba)+'</td><td class="num">'+lakh(lo*sba*up)+' – '+lakh(hi*sba*up)+'</td></tr>'});
+  $("tShopSize").innerHTML=h;
+  $("shopNote").innerHTML="At this selling rate a Karjan shop is priced at "+inr(k)+" (Karjan residential rate "+inr(x.resKarjan)+" "+cite("S1")+" × your rate ÷ comparable median) × "+x.shopLow.toFixed(2)+"–"+x.shopHigh.toFixed(2)+" × (super area ÷ 300)<sup>"+x.shopElast.toFixed(2)+"</sup>. Each doubling of size lowers ₹/sq ft by "+((1-Math.pow(2,x.shopElast))*100).toFixed(0)+"%, but the total price still rises."+(f.error?"":" Fit on "+f.n+" listings: R² "+f.r2.toFixed(2)+".");
+  $("shopFitNote").textContent=f.error?f.error:"Current listings fit: elasticity "+f.elast.toFixed(2)+", ratio "+f.low.toFixed(2)+"–"+f.high.toFixed(2)+"×"+(f.upper!=null?", upper floor −"+f.upper.toFixed(0)+"%":"");
+}
+function drawChart(r){
+  var vals=[r.comps.min,r.comps.max,r.rate,r.need0,r.needT].filter(isFinite),lo=Math.min.apply(null,vals)*0.9,hi=Math.max.apply(null,vals)*1.07,W=680,x=function(v){return 44+(v-lo)/(hi-lo)*(W-88)};
+  var span=hi-lo,step=span>8000?2000:span>4000?1000:(span>2000?500:250),ticks="";
+  for(var v=Math.ceil(lo/step)*step;v<=hi;v+=step)ticks+='<line x1="'+x(v)+'" x2="'+x(v)+'" y1="40" y2="128" stroke="var(--line)"/><text x="'+x(v)+'" y="146" font-size="10" text-anchor="middle" fill="var(--muted)" font-family="var(--f-num)">'+v.toLocaleString("en-IN")+'</text>';
+  var dots=r.comps.used.map(function(p){return '<circle cx="'+x(p)+'" cy="64" r="6" fill="var(--brand)" stroke="var(--surface)" stroke-width="2"/>'}).join("");
+  function mk(v,label,col,y){var a=x(v)>W-110?"end":(x(v)<110?"start":"middle");return '<line x1="'+x(v)+'" x2="'+x(v)+'" y1="86" y2="128" stroke="'+col+'" stroke-width="2" stroke-dasharray="4 3"/><text x="'+x(v)+'" y="'+y+'" font-size="11" font-weight="600" text-anchor="'+a+'" fill="'+col+'">'+label+'</text>'}
+  var y0=104,y1=118;if(Math.abs(x(r.need0)-x(r.needT))>130)y1=104;
+  $("chart").innerHTML='<svg viewBox="0 0 '+W+' 160" role="img"><title>Karjan comparable range, selling rate, break-even and target-margin prices</title>'+ticks+
+   '<rect x="'+x(r.comps.min)+'" y="52" width="'+Math.max(4,x(r.comps.max)-x(r.comps.min))+'" height="24" rx="12" fill="var(--brand-soft)"/>'+dots+
+   '<text x="'+Math.min(x(r.comps.min),W-230)+'" y="44" font-size="11" fill="var(--muted)" font-weight="500">Karjan comparables, ₹/sq ft carpet</text>'+
+   '<line x1="'+x(r.rate)+'" x2="'+x(r.rate)+'" y1="44" y2="128" stroke="var(--accent)" stroke-width="3"/>'+
+   '<rect x="'+(x(r.rate)-60)+'" y="8" width="120" height="22" rx="11" fill="var(--accent)"/><text x="'+x(r.rate)+'" y="23" font-size="11.5" font-weight="700" text-anchor="middle" fill="#fff">Selling '+Math.round(r.rate).toLocaleString("en-IN")+'</text>'+
+   (isFinite(r.need0)?mk(r.need0,"Break-even "+Math.round(r.need0).toLocaleString("en-IN"),"var(--bad)",y0):"")+
+   (isFinite(r.needT)?mk(r.needT,(r.x.targetMode==="amount"?"₹"+r.x.targetAmt+" L profit ":r.x.targetNet+"% margin ")+Math.round(r.needT).toLocaleString("en-IN"),"var(--good)",y1):"")+'</svg>';
+}
+
+function changed(){readForm();render();scheduleSave()}
+function scheduleSave(){
+  if(!db||!canEdit){$("saveState").textContent="Example project · not saved";return}
+  $("saveState").textContent="Saving…";clearTimeout(saveTimer);
+  saveTimer=setTimeout(function(){db.doc(KEY).set({inputs:JSON.stringify(state),savedAt:new Date().toISOString()}).then(function(){$("saveState").textContent="Saved"}).catch(function(){$("saveState").textContent="Not saved"})},1500);
+}
+function wire(){
+  var form=$("form");
+  form.addEventListener("input",changed);
+  form.addEventListener("change",function(e){var t=e.target;
+    if(t.dataset&&t.dataset.k==="tpl"&&TPL[t.value]){var c=t.closest(".persona"),T=TPL[t.value];["label","income","emi","savings","rate","tenure","foir"].forEach(function(k){c.querySelector("[data-k="+k+"]").value=T[k]});c.querySelector("[data-k=why]").textContent=T.why}
+    changed()});
+  form.addEventListener("click",function(e){var dr=e.target.closest("[data-delrow]");if(dr){dr.closest("tr").remove();changed();return}var d=e.target.closest("[data-del]");if(!d)return;if($("mixBody").rows.length<=1){toast("Keep at least one unit type");return}d.closest("tr").remove();changed()});
+  form.addEventListener("submit",function(e){e.preventDefault()});
+  $("addUnit").addEventListener("click",function(){readForm();state.mix.push({id:"u"+Date.now(),label:"New unit",kind:"flat",carpet:500,count:4});renderMix();changed()});
+  $("addComp").addEventListener("click",function(){readForm();state.comps.push({name:"New comparable · unit",rera:"PR/GJ/VADODARA/KARJAN/",carpet:500,price:2750000,basis:"carpet",include:true,status:"Added by you",src:""});renderComps();changed()});
+  $("addLand").addEventListener("click",function(){readForm();state.evidence.land.push({name:"New plot listing",plot:1500,price:1500000});renderEvidence();changed()});
+  $("addShop").addEventListener("click",function(){readForm();state.evidence.shops.unshift({loc:"New shop listing (e.g. 99acres)",area:250,price:3500000,floor:"G",res:3400,include:true,src:"",resSrc:""});renderEvidence();changed()});
+  $("applyLand").addEventListener("click",function(){readForm();var v=state.evidence.land.filter(function(l){return l.plot>0&&l.price>0}).map(function(l){return l.price/l.plot});if(!v.length){toast("Add at least one land listing");return}
+    var m=Math.round(E.quantile(v,.5)/25)*25;$("r_landRate").value=m;changed();toast("Land rate set to ₹"+m.toLocaleString("en-IN")+" (median of "+v.length+" listings)")});
+  $("applyShop").addEventListener("click",function(){readForm();var f=E.fitShops(state.evidence.shops);if(f.error){toast(f.error);return}
+    var clamp=function(k,v){var d=PP[k];return Math.min(d[6],Math.max(d[5],v))};
+    $("r_shopElast").value=clamp("shopElast",Math.round(f.elast*100)/100);$("r_shopLow").value=clamp("shopLow",Math.round(f.low*100)/100);$("r_shopHigh").value=clamp("shopHigh",Math.round(f.high*100)/100);if(f.upper!=null)$("r_shopUpper").value=clamp("shopUpper",Math.round(f.upper));
+    changed();toast("Fitted on "+f.n+" listings: elasticity "+f.elast.toFixed(2)+", ratio "+f.low.toFixed(2)+"–"+f.high.toFixed(2)+"×")});
+  $("btnBackup").addEventListener("click",function(){readForm();var data=JSON.stringify({app:"karjan-pricer",version:9,saved:new Date().toISOString(),state:state},null,2);
+    var fn="karjan-pricer-backup-"+new Date().toISOString().slice(0,10)+".json";
+    (window.claude&&window.claude.use?window.claude.use("downloads"):Promise.resolve(null)).then(function(d){if(!d){toast("Saving files is not available in this view");return}
+      return d.save({filename:fn,data:data}).then(function(){toast("Backup saved")}).catch(function(e){if(e&&e.code!=="declined")toast("Could not save the backup")});});});
+  $("fileRestore").addEventListener("change",function(ev){var f=ev.target.files&&ev.target.files[0];if(!f)return;var rd=new FileReader();
+    rd.onload=function(){try{var o=JSON.parse(rd.result);if(o.app!=="karjan-pricer"||!o.state)throw 0;var sv=o.state,fr=fresh();
+      state=merge(sv,!(o.version>=9));
+      fillForm();render();scheduleSave();toast(o.version>=9?"Backup restored":"Older backup restored; shop pricing updated to the size model")}catch(e){toast("That file is not a Karjan Pricer backup")}ev.target.value=""};rd.readAsText(f)});
+
+  $("btnReset").addEventListener("click",function(){state=fresh();fillForm();render();scheduleSave();toast("All settings back to defaults")});
+}
+
+/* boot */
+function showConsole(){$("boot").hidden=true;$("console").hidden=false}
+buildStatic();wire();
+var inViewer=false,booted=false;
+function bootLocal(){if(booted)return;booted=true;fillForm();render();showConsole();$("saveState").textContent="Demo version · changes are not saved"}
+if(!inViewer)bootLocal();
+else{
+  var fb=setTimeout(bootLocal,10500);
+  Promise.all([window.claude.use("user"),window.claude.use("db")]).then(function(res){
+    if(booted)return;booted=true;clearTimeout(fb);var user=res[0];db=res[1];
+    return (user?user.canEdit():Promise.resolve(false)).then(function(ce){
+      canEdit=ce===true;
+      if(canEdit){fillForm();render();showConsole();$("saveState").textContent="Example project · edits save automatically";
+        if(db)db.doc(KEY).get().then(function(s){if(s.exists)return {s:s,old:false};return db.doc(OLDKEY).get().then(function(o){return o.exists?{s:o,old:true}:null})}).then(function(h){if(!h)return;try{var sv=JSON.parse(h.s.data().inputs);state=merge(sv,h.old);fillForm();render();$("saveState").textContent=h.old?"Loaded your earlier settings (shop pricing updated to the size model)":"Saved"}catch(e){}}).catch(function(){});
+      } else {
+        $("boot").textContent="This pricing model is for company use only. Ask the project owner for edit access.";
+      }
+    });
+  }).catch(function(){bootLocal()});
+}
+})();
+</script>
